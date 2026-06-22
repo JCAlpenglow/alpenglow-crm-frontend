@@ -690,7 +690,7 @@ export default function App() {
   );
 }
 
-// ── CAPTURE MODAL — calls Railway backend ─────────────────────
+// ── CAPTURE MODAL — calls deal tracker extract endpoint ───────
 function CaptureModal({ onClose, onSaved, userId, showToast }) {
   const [step, setStep] = useState('upload');
   const [preview, setPreview] = useState(null);
@@ -715,8 +715,7 @@ function CaptureModal({ onClose, onSaved, userId, showToast }) {
     try {
       const base64 = dataUrl.split(',')[1];
       const mediaType = dataUrl.split(';')[0].split(':')[1];
-      const apiUrl = process.env.REACT_APP_API_URL;
-      const response = await fetch(`${apiUrl}/api/extract`, {
+      const response = await fetch('https://re-deal-tracker.vercel.app/api/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
