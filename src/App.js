@@ -690,7 +690,7 @@ export default function App() {
   );
 }
 
-// ── CAPTURE MODAL — calls deal tracker extract endpoint ───────
+// ── CAPTURE MODAL ─────────────────────────────────────────────
 function CaptureModal({ onClose, onSaved, userId, showToast }) {
   const [step, setStep] = useState('upload');
   const [preview, setPreview] = useState(null);
@@ -701,20 +701,33 @@ function CaptureModal({ onClose, onSaved, userId, showToast }) {
   const handleFile = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setPreview(ev.target.result);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX = 1024;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      URL.revokeObjectURL(url);
+      setPreview(dataUrl);
       setStep('confirm');
-      extractContact(ev.target.result);
+      extractContact(dataUrl);
     };
-    reader.readAsDataURL(file);
+    img.src = url;
   };
 
   const extractContact = async (dataUrl) => {
     setExtracting(true);
     try {
       const base64 = dataUrl.split(',')[1];
-      const mediaType = dataUrl.split(';')[0].split(':')[1];
+      const mediaType = 'image/jpeg';
       const response = await fetch('https://re-deal-tracker.vercel.app/api/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
