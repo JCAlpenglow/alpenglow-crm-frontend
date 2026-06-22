@@ -493,4 +493,493 @@ export default function App() {
               <div style={{ position: 'absolute', bottom: 0, left: 0, height: 2, width: `${Math.round(st[stage.id] / total * 100)}%`, background: stage.c, opacity: 0.55 }} />
             </div>
           ))}
-          <div style={{ ...S.stat,
+          <div style={{ ...S.stat, borderRight: 'none' }}>
+            <div style={{ ...S.statNum, color: '#E07858' }}>{st.overdue}</div>
+            <div style={S.statLbl}>Overdue</div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(170,152,125,0.42)', fontSize: 12, letterSpacing: '0.1em' }}>
+            Loading pipeline…
+          </div>
+        ) : (
+          <div style={S.board}>
+            {STAGES.map(stage => {
+              const stageContacts = list.filter(c => c.stage === stage.id);
+              return (
+                <div key={stage.id} style={S.col}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => handleDrop(e, stage.id)}>
+                  <div style={{ height: 2, background: stage.c, opacity: 0.8, borderRadius: '6px 6px 0 0' }} />
+                  <div style={S.colHdr}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: stage.c, flexShrink: 0 }} />
+                      <span style={S.colName}>{stage.lb}</span>
+                    </div>
+                    <span style={S.colCnt}>{stageContacts.length}</span>
+                  </div>
+                  <div style={S.colBody}>
+                    {stageContacts.length === 0 && (
+                      <div style={{ textAlign: 'center', padding: '22px 10px', fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)', opacity: 0.5 }}>
+                        <i className="ti ti-inbox" style={{ fontSize: 18, display: 'block', marginBottom: 5 }} />
+                        No contacts
+                      </div>
+                    )}
+                    {stageContacts.map(c => {
+                      const b = badgeFor(c.last_contact_date);
+                      const av = avatarStyle(c.full_name);
+                      const ic = GH_ICONS[c.contact_type] || GH_ICONS.contact;
+                      return (
+                        <div key={c.id} style={S.card} draggable
+                          onDragStart={e => handleDragStart(e, c.id)}
+                          onDragEnd={() => setDragId(null)}>
+                          <div style={S.cardTop}>
+                            <div style={{ ...S.av, background: av.b, color: av.c }}>{initials(c.full_name)}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={S.cardName}>{c.full_name}</div>
+                              <div style={S.cardFirm}>{c.firm}</div>
+                            </div>
+                            <i className={`ti ${ic.icon}`} style={{ fontSize: 11, color: av.c, opacity: 0.7 }} />
+                          </div>
+                          <div style={S.cardMeta}>
+                            <div style={S.metaRow}><i className="ti ti-map-pin" style={{ fontSize: 11 }} />{c.city}</div>
+                            <div style={S.metaRow}><i className="ti ti-tag" style={{ fontSize: 11 }} />
+                              <span style={{ ...S.spl, color: stage.c, borderColor: stage.c + '44', background: stage.c + '12' }}>{c.source}</span>
+                            </div>
+                          </div>
+                          <div style={S.cardFt}>
+                            <span style={S[b.cl]}>{b.lb}</span>
+                            <div style={{ display: 'flex', gap: 2 }}>
+                              <button style={S.ibtn} onClick={() => setModal({ type: 'detail', contact: c })}><i className="ti ti-eye" style={{ fontSize: 12 }} /></button>
+                              <button style={S.ibtn} onClick={() => setModal({ type: 'edit', contact: c })}><i className="ti ti-edit" style={{ fontSize: 12 }} /></button>
+                              <button style={S.ibtn} onClick={() => handleDelete(c.id, c.full_name)}><i className="ti ti-trash" style={{ fontSize: 12 }} /></button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {modal?.type === 'import' && (
+        <ImportModal
+          onClose={() => setModal(null)}
+          onImported={loadContacts}
+          userId={user?.id}
+          showToast={showToast}
+        />
+      )}
+
+      {modal?.type === 'capture' && (
+        <CaptureModal
+          onClose={() => setModal(null)}
+          onSaved={(contact) => {
+            setContacts(prev => [contact, ...prev]);
+            showToast('Contact captured and saved');
+          }}
+          userId={user?.id}
+          showToast={showToast}
+        />
+      )}
+
+      {modal && modal.type !== 'import' && modal.type !== 'capture' && (
+        <ContactModal
+          modal={modal}
+          profile={profile}
+          onClose={() => setModal(null)}
+          onSave={handleSave}
+          onDelete={handleDelete}
+          onMoveStage={async (contactId, fromStage, toStage) => {
+            if (toStage === 'invested') {
+              const contact = contacts.find(c => c.id === contactId);
+              setModal({ type: 'promote', contact });
+              return;
+            }
+            await moveStage(contactId, fromStage, toStage, user.id);
+            setContacts(prev => prev.map(c => c.id === contactId ? { ...c, stage: toStage } : c));
+            setModal(null);
+            showToast('Moved to ' + STAGES.find(s => s.id === toStage).lb);
+          }}
+          onPromotionRequest={handlePromotionRequest}
+          onPromotionApprove={handlePromotionApprove}
+          showToast={showToast}
+        />
+      )}
+
+      <div style={S.toast(toast.show)}>{toast.msg}</div>
+    </div>
+  );
+}
+
+function CaptureModal({ onClose, onSaved, userId, showToast }) {
+  const [step, setStep] = useState('upload');
+  const [preview, setPreview] = useState(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extracted, setExtracted] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setPreview(ev.target.result);
+      setStep('confirm');
+      extractContact(ev.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const extractContact = async (dataUrl) => {
+    setExtracting(true);
+    try {
+      const base64 = dataUrl.split(',')[1];
+      const mediaType = dataUrl.split(';')[0].split(':')[1];
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: mediaType, data: base64 },
+              },
+              {
+                type: 'text',
+                text: `Extract contact information from this business card or tare sheet image. Return ONLY a JSON object with these exact fields, no other text:
+{
+  "full_name": "",
+  "email": "",
+  "phone": "",
+  "firm": "",
+  "city": "",
+  "management_co": "Alpenglow Capital",
+  "title": ""
+}
+If a field is not visible, leave it as an empty string.`,
+              },
+            ],
+          }],
+        }),
+      });
+      const data = await response.json();
+      const text = data.content?.[0]?.text || '{}';
+      const clean = text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      setExtracted(parsed);
+    } catch (e) {
+      showToast('Could not extract — please fill in manually');
+      setExtracted({ full_name: '', email: '', phone: '', firm: '', city: '', management_co: 'Alpenglow Capital' });
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!extracted?.full_name) { showToast('Name is required'); return; }
+    setSaving(true);
+    try {
+      const contact = await createContact({
+        full_name: extracted.full_name,
+        email: extracted.email || '',
+        phone: extracted.phone || '',
+        firm: extracted.firm || '',
+        city: extracted.city || '',
+        management_co: extracted.management_co || 'Alpenglow Capital',
+        source: 'Conference',
+        contact_type: 'investor',
+        stage: 'suspect',
+        last_contact_date: new Date().toISOString().split('T')[0],
+        notes: extracted.title ? `Title: ${extracted.title}` : '',
+      }, userId);
+      onSaved(contact);
+      onClose();
+    } catch (e) {
+      showToast('Error saving contact');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const set = (k) => (e) => setExtracted(prev => ({ ...prev, [k]: e.target.value }));
+
+  return (
+    <div style={S.ovl} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={S.modal}>
+        <div style={S.mHdr}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <i className="ti ti-camera" style={{ fontSize: 16, color: '#C4522A' }} />
+            <span style={S.mTitle}>Capture contact</span>
+          </div>
+          <button style={S.ibtn} onClick={onClose}><i className="ti ti-x" /></button>
+        </div>
+
+        {step === 'upload' && (
+          <>
+            <div
+              style={{ border: '1px dashed rgba(196,82,42,0.42)', borderRadius: 5, padding: 32, textAlign: 'center', cursor: 'pointer', marginBottom: 13, background: 'rgba(196,82,42,0.04)' }}
+              onClick={() => document.getElementById('captureInput').click()}>
+              <i className="ti ti-camera" style={{ fontSize: 32, color: '#C4522A', display: 'block', marginBottom: 10 }} />
+              <p style={{ fontSize: 12, color: 'rgba(200,182,155,0.7)', marginBottom: 6 }}>Take a photo or upload from gallery</p>
+              <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.38)' }}>Business card · Tare sheet · Any contact info</p>
+            </div>
+            <input
+              type="file"
+              id="captureInput"
+              accept="image/*"
+              capture="environment"
+              style={{ display: 'none' }}
+              onChange={handleFile}
+            />
+            <div style={S.mFt}>
+              <button style={S.btn} onClick={onClose}>Cancel</button>
+            </div>
+          </>
+        )}
+
+        {step === 'confirm' && (
+          <>
+            {preview && (
+              <img src={preview} alt="Captured" style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 4, marginBottom: 14 }} />
+            )}
+            {extracting ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: 'rgba(170,152,125,0.6)', fontSize: 11, letterSpacing: '0.1em' }}>
+                <i className="ti ti-loader" style={{ fontSize: 22, display: 'block', marginBottom: 8, animation: 'spin 1s linear infinite' }} />
+                Extracting contact details…
+              </div>
+            ) : extracted && (
+              <>
+                <div style={{ fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)', marginBottom: 10 }}>
+                  Review and edit extracted details
+                </div>
+                <div style={S.fGrid}>
+                  {[
+                    ['full_name', 'Full name'],
+                    ['firm', 'Firm'],
+                    ['email', 'Email'],
+                    ['phone', 'Phone'],
+                    ['city', 'City'],
+                    ['management_co', 'Management co'],
+                  ].map(([key, label]) => (
+                    <div key={key} style={S.fGrp}>
+                      <label style={S.fLbl}>{label}</label>
+                      <input style={S.fInp} value={extracted[key] || ''} onChange={set(key)} />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            <div style={S.mFt}>
+              <button style={S.btn} onClick={onClose}>Cancel</button>
+              <button
+                style={{ ...S.btnP, opacity: (extracting || saving) ? 0.7 : 1 }}
+                onClick={handleSave}
+                disabled={extracting || saving}>
+                {saving ? 'Saving…' : 'Add to pipeline'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+function ContactModal({ modal, profile, onClose, onSave, onDelete, onMoveStage, onPromotionRequest, onPromotionApprove, showToast }) {
+  const [form, setForm] = useState({
+    name: modal.contact?.full_name || '',
+    email: modal.contact?.email || '',
+    phone: modal.contact?.phone || '',
+    firm: modal.contact?.firm || '',
+    city: modal.contact?.city || '',
+    mgmtCo: modal.contact?.management_co || 'Alpenglow Capital',
+    source: modal.contact?.source || 'Referral',
+    type: modal.contact?.contact_type || 'investor',
+    stage: modal.contact?.stage || 'suspect',
+    lastContact: modal.contact?.last_contact_date || new Date().toISOString().split('T')[0],
+    notes: modal.contact?.notes || '',
+  });
+  const [promoDetails, setPromoDetails] = useState({
+    share_class: 'A',
+    commitment_amount: '',
+    accreditation_status: 'accredited_investor',
+    notes: '',
+  });
+
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const setP = (k) => (e) => setPromoDetails(p => ({ ...p, [k]: e.target.value }));
+
+  if (modal.type === 'promote') {
+    return (
+      <div style={S.ovl} onClick={e => e.target === e.currentTarget && onClose()}>
+        <div style={{ ...S.modal, borderColor: '#C9A84C55' }}>
+          <div style={S.mHdr}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <i className="ti ti-lock" style={{ fontSize: 16, color: '#C9A84C' }} />
+              <span style={{ ...S.mTitle, color: '#C9A84C' }}>Promote to Invested</span>
+            </div>
+            <button style={S.ibtn} onClick={onClose}><i className="ti ti-x" /></button>
+          </div>
+          <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 4, padding: '10px 12px', marginBottom: 16, fontSize: 11, color: 'rgba(201,168,76,0.8)', lineHeight: 1.5 }}>
+            You are about to promote <strong style={{ color: '#C9A84C' }}>{modal.contact.full_name}</strong> to Invested status. This will write their record to the secure LP Registry database. This action is logged and requires authorization.
+          </div>
+          <div style={S.fGrid}>
+            <div style={S.fGrp}>
+              <label style={S.fLbl}>Share class</label>
+              <select style={S.fInp} value={promoDetails.share_class} onChange={setP('share_class')}>
+                <option value="A">Class A</option>
+                <option value="P">Class P</option>
+              </select>
+            </div>
+            <div style={S.fGrp}>
+              <label style={S.fLbl}>Commitment amount ($)</label>
+              <input style={S.fInp} type="number" placeholder="2500000" value={promoDetails.commitment_amount} onChange={setP('commitment_amount')} />
+            </div>
+            <div style={{ ...S.fGrp, ...S.fFull }}>
+              <label style={S.fLbl}>Accreditation status</label>
+              <select style={S.fInp} value={promoDetails.accreditation_status} onChange={setP('accreditation_status')}>
+                <option value="accredited_investor">Accredited Investor</option>
+                <option value="qualified_purchaser">Qualified Purchaser</option>
+                <option value="qualified_client">Qualified Client</option>
+              </select>
+            </div>
+            <div style={{ ...S.fGrp, ...S.fFull }}>
+              <label style={S.fLbl}>Notes</label>
+              <textarea style={S.fTa} value={promoDetails.notes} onChange={setP('notes')} placeholder="KYC notes, wire details reference, any relevant context…" />
+            </div>
+          </div>
+          <div style={S.mFt}>
+            <button style={S.btn} onClick={onClose}>Cancel</button>
+            <button style={{ ...S.btnP, background: '#C9A84C', borderColor: '#C9A84C' }}
+              onClick={() => onPromotionRequest(modal.contact, promoDetails)}>
+              <i className="ti ti-lock" /> Submit for approval
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (modal.type === 'detail') {
+    const c = modal.contact;
+    const b = badgeFor(c.last_contact_date);
+    const av = avatarStyle(c.full_name);
+    return (
+      <div style={S.ovl} onClick={e => e.target === e.currentTarget && onClose()}>
+        <div style={S.modal}>
+          <div style={S.mHdr}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <div style={{ ...S.av, background: av.b, color: av.c, width: 28, height: 28, fontSize: 9 }}>{initials(c.full_name)}</div>
+              <span style={S.mTitle}>{c.full_name}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button style={S.ibtn} onClick={onClose}><i className="ti ti-x" /></button>
+            </div>
+          </div>
+          {[
+            ['ti-building', 'Firm', c.firm],
+            ['ti-mail', 'Email', c.email],
+            ['ti-phone', 'Phone', c.phone],
+            ['ti-map-pin', 'City', c.city],
+            ['ti-briefcase', 'Mgmt co', c.management_co],
+            ['ti-tag', 'Source', c.source],
+          ].map(([icon, label, val]) => val && (
+            <div key={label} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 7, fontSize: 12 }}>
+              <i className={`ti ${icon}`} style={{ fontSize: 13, color: 'rgba(170,152,125,0.42)', marginTop: 1 }} />
+              <span style={{ color: 'rgba(170,152,125,0.42)', minWidth: 100, fontSize: 11 }}>{label}</span>
+              <span style={{ color: 'rgba(200,182,155,0.62)' }}>{val}</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14, fontSize: 12 }}>
+            <i className="ti ti-calendar" style={{ fontSize: 13, color: 'rgba(170,152,125,0.42)', marginTop: 1 }} />
+            <span style={{ color: 'rgba(170,152,125,0.42)', minWidth: 100, fontSize: 11 }}>Last contact</span>
+            <span style={S[b.cl]}>{c.last_contact_date} · {b.lb}</span>
+          </div>
+          <div style={{ fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)', marginBottom: 8 }}>Pipeline stage</div>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 14 }}>
+            {STAGES.map(s => (
+              <button key={s.id} style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: 3, cursor: 'pointer', border: `1px solid ${s.c}55`, background: c.stage === s.id ? s.c + '1A' : 'transparent', color: s.c, fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}
+                onClick={() => onMoveStage(c.id, c.stage, s.id)}>
+                {s.lb}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)', marginBottom: 6 }}>Notes</div>
+          <textarea style={S.fTa} defaultValue={c.notes} />
+          <div style={S.mFt}><button style={S.btn} onClick={onClose}>Close</button></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={S.ovl} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={S.modal}>
+        <div style={S.mHdr}>
+          <span style={S.mTitle}>{modal.type === 'edit' ? 'Edit Contact' : 'New Contact'}</span>
+          <button style={S.ibtn} onClick={onClose}><i className="ti ti-x" /></button>
+        </div>
+        <div style={S.fGrid}>
+          {[
+            ['name', 'Full name', 'text', 'Jane Smith'],
+            ['firm', 'Firm', 'text', 'Smith Capital'],
+            ['email', 'Email', 'email', 'jane@firm.com'],
+            ['phone', 'Phone', 'text', '(555) 000-0000'],
+            ['city', 'City', 'text', 'New York'],
+            ['mgmtCo', 'Management co', 'text', 'Alpenglow Capital'],
+          ].map(([key, label, type, placeholder]) => (
+            <div key={key} style={S.fGrp}>
+              <label style={S.fLbl}>{label}</label>
+              <input style={S.fInp} type={type} placeholder={placeholder} value={form[key]} onChange={set(key)} />
+            </div>
+          ))}
+          <div style={S.fGrp}>
+            <label style={S.fLbl}>Contact type</label>
+            <select style={S.fInp} value={form.type} onChange={set('type')}>
+              <option value="investor">Investor</option>
+              <option value="manager">Manager</option>
+              <option value="contact">Contact</option>
+            </select>
+          </div>
+          <div style={S.fGrp}>
+            <label style={S.fLbl}>Source</label>
+            <select style={S.fInp} value={form.source} onChange={set('source')}>
+              {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div style={S.fGrp}>
+            <label style={S.fLbl}>Stage</label>
+            <select style={S.fInp} value={form.stage} onChange={set('stage')}>
+              {STAGES.map(s => <option key={s.id} value={s.id}>{s.lb}</option>)}
+            </select>
+          </div>
+          <div style={S.fGrp}>
+            <label style={S.fLbl}>Last contact</label>
+            <input style={S.fInp} type="date" value={form.lastContact} onChange={set('lastContact')} />
+          </div>
+          <div style={{ ...S.fGrp, ...S.fFull }}>
+            <label style={S.fLbl}>Notes</label>
+            <textarea style={S.fTa} value={form.notes} onChange={set('notes')} />
+          </div>
+        </div>
+        <div style={S.mFt}>
+          <button style={S.btn} onClick={onClose}>Cancel</button>
+          <button style={S.btnP} onClick={() => onSave(form, modal.contact?.id)}>
+            {modal.type === 'edit' ? 'Save changes' : 'Add contact'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
