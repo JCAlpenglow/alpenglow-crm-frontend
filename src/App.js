@@ -39,6 +39,8 @@ const STAGE_CLS = {
   invested:   'ss-inv',
 };
 
+const CARDS_PER_PAGE = 15;
+
 const daysSince = (dateStr) => {
   if (!dateStr) return 999;
   return Math.floor((Date.now() - new Date(dateStr)) / 86400000);
@@ -94,17 +96,26 @@ const S = {
   hRight: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   btn: { fontFamily: "'Montserrat', sans-serif", fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 3, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.13)', background: 'rgba(255,255,255,0.03)', color: 'rgba(200,182,155,0.62)', display: 'inline-flex', alignItems: 'center', gap: 6 },
   btnP: { fontFamily: "'Montserrat', sans-serif", fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 3, cursor: 'pointer', border: '1px solid #C4522A', background: '#C4522A', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 6 },
+  btnActive: { fontFamily: "'Montserrat', sans-serif", fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 3, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.1)', color: 'rgba(232,220,200,0.92)', display: 'inline-flex', alignItems: 'center', gap: 6 },
   ibtn: { width: 24, height: 24, borderRadius: 3, border: 'none', background: 'transparent', cursor: 'pointer', color: 'rgba(170,152,125,0.42)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
   stats: { display: 'flex', background: 'rgba(7,9,13,0.78)', borderBottom: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(8px)' },
   stat: { flex: 1, padding: '9px 12px', textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.07)', position: 'relative', overflow: 'hidden' },
   statNum: { fontSize: 20, fontWeight: 500, lineHeight: 1 },
   statLbl: { fontSize: 8, letterSpacing: '0.16em', color: 'rgba(170,152,125,0.42)', textTransform: 'uppercase', marginTop: 3, fontWeight: 300 },
+  // Filter bar
+  filterBar: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 18px', background: 'rgba(7,9,13,0.65)', borderBottom: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', backdropFilter: 'blur(8px)' },
+  filterLabel: { fontSize: 8, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.38)', marginRight: 2 },
+  pill: { fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 20, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(170,152,125,0.55)', fontFamily: "'Montserrat', sans-serif", transition: 'all 0.15s', display: 'inline-flex', alignItems: 'center', gap: 5 },
+  pillActive: { fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 20, cursor: 'pointer', border: '1px solid rgba(196,82,42,0.5)', background: 'rgba(196,82,42,0.15)', color: 'rgba(232,113,58,0.9)', fontFamily: "'Montserrat', sans-serif", display: 'inline-flex', alignItems: 'center', gap: 5 },
+  pillDivider: { width: 1, height: 14, background: 'rgba(255,255,255,0.08)', margin: '0 4px' },
+  // Board
   board: { display: 'flex', gap: 10, padding: 14, flex: 1, alignItems: 'flex-start', overflowX: 'auto' },
-  col: { flex: '0 0 200px', background: 'rgba(10,14,22,0.75)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 6, backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', minHeight: 520 },
-  colHdr: { padding: '10px 12px 9px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  col: { flex: '0 0 200px', background: 'rgba(10,14,22,0.75)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 6, backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column' },
+  colHdr: { padding: '10px 12px 9px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
   colName: { fontSize: 9, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(200,182,155,0.62)' },
   colCnt: { fontSize: 9, color: 'rgba(170,152,125,0.42)', background: 'rgba(255,255,255,0.06)', borderRadius: 9, padding: '1px 7px' },
-  colBody: { padding: 8, display: 'flex', flexDirection: 'column', gap: 7, flex: 1 },
+  colScroll: { overflowY: 'auto', flex: 1, minHeight: 120, maxHeight: 'calc(100vh - 280px)' },
+  colBody: { padding: 8, display: 'flex', flexDirection: 'column', gap: 7 },
   card: { background: 'rgba(14,18,28,0.86)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 5, padding: '10px 11px', cursor: 'grab', userSelect: 'none' },
   cardTop: { display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 7 },
   av: { width: 28, height: 28, borderRadius: '50%', fontSize: 9, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
@@ -117,6 +128,7 @@ const S = {
   bok: { fontSize: 8, letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 2, fontWeight: 500, background: 'rgba(91,170,122,.14)', color: '#6DBF90', border: '1px solid rgba(91,170,122,.22)' },
   bwn: { fontSize: 8, letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 2, fontWeight: 500, background: 'rgba(201,168,76,.14)', color: '#D4B44A', border: '1px solid rgba(201,168,76,.25)' },
   bod: { fontSize: 8, letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 2, fontWeight: 500, background: 'rgba(196,82,42,.18)', color: '#E07858', border: '1px solid rgba(196,82,42,.3)' },
+  showMore: { margin: '4px 8px 8px', padding: '7px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: 'rgba(170,152,125,0.55)', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', textAlign: 'center', fontFamily: "'Montserrat', sans-serif", width: 'calc(100% - 16px)' },
   ovl: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
   modal: { background: 'rgba(11,15,24,0.97)', border: '1px solid rgba(255,255,255,0.13)', borderRadius: 8, width: 460, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', padding: 22 },
   mHdr: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.07)' },
@@ -201,6 +213,9 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [activeSource, setActiveSource] = useState(null);
+  const [activeType, setActiveType] = useState(null);
+  const [colPages, setColPages] = useState({ suspect: 1, prospect: 1, engagement: 1, invested: 1 });
 
   useEffect(() => {
     pipelineDb.auth.getSession().then(({ data: { session } }) => {
@@ -244,15 +259,8 @@ export default function App() {
     }
   };
 
-  const handleLogin = () => {
-    loadProfile();
-    loadContacts();
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    setUser(null);
-  };
+  const handleLogin = () => { loadProfile(); loadContacts(); };
+  const handleSignOut = async () => { await signOut(); setUser(null); };
 
   const showToast = useCallback((msg) => {
     setToast({ show: true, msg });
@@ -377,15 +385,25 @@ export default function App() {
     }
   };
 
+  // Reset column pages when filters change
+  useEffect(() => {
+    setColPages({ suspect: 1, prospect: 1, engagement: 1, invested: 1 });
+  }, [activeSource, activeType, search]);
+
   const filtered = useCallback(() => {
-    if (!search.trim()) return contacts;
-    const lq = search.toLowerCase();
-    return contacts.filter(c =>
-      c.full_name?.toLowerCase().includes(lq) ||
-      c.firm?.toLowerCase().includes(lq) ||
-      c.city?.toLowerCase().includes(lq)
-    );
-  }, [contacts, search]);
+    let list = contacts;
+    if (search.trim()) {
+      const lq = search.toLowerCase();
+      list = list.filter(c =>
+        c.full_name?.toLowerCase().includes(lq) ||
+        c.firm?.toLowerCase().includes(lq) ||
+        c.city?.toLowerCase().includes(lq)
+      );
+    }
+    if (activeSource) list = list.filter(c => c.source === activeSource);
+    if (activeType) list = list.filter(c => c.contact_type === activeType);
+    return list;
+  }, [contacts, search, activeSource, activeType]);
 
   const stats = useCallback(() => {
     const s = { suspect: 0, prospect: 0, engagement: 0, invested: 0, overdue: 0 };
@@ -396,11 +414,25 @@ export default function App() {
     return s;
   }, [contacts]);
 
+  const showMoreCol = (stageId) => {
+    setColPages(prev => ({ ...prev, [stageId]: prev[stageId] + 1 }));
+  };
+
+  const clearFilters = () => {
+    setActiveSource(null);
+    setActiveType(null);
+  };
+
+  const hasFilters = activeSource || activeType;
+
   if (!user) return <Login onLogin={handleLogin} />;
 
   const st = stats();
   const list = filtered();
   const total = contacts.length || 1;
+
+  // Unique sources from actual contacts
+  const usedSources = [...new Set(contacts.map(c => c.source).filter(Boolean))];
 
   return (
     <div style={S.app}>
@@ -420,6 +452,7 @@ export default function App() {
       </div>
 
       <div style={S.content}>
+        {/* Header */}
         <div style={S.hdr}>
           <div style={S.brand}>
             <img src={LOGO_SVG} alt="Alpenglow Capital" style={S.logo} />
@@ -442,7 +475,6 @@ export default function App() {
                   <div style={S.sSec}>Results</div>
                   {searchResults.map(r => {
                     const ic = GH_ICONS[r.contact_type] || GH_ICONS.contact;
-                    const b = badgeFor(r.last_contact_date);
                     const av = avatarStyle(r.full_name);
                     return (
                       <div key={r.id} style={S.sRow}
@@ -485,6 +517,7 @@ export default function App() {
           </div>
         </div>
 
+        {/* Stats */}
         <div style={S.stats}>
           {STAGES.map(stage => (
             <div key={stage.id} style={S.stat}>
@@ -499,6 +532,57 @@ export default function App() {
           </div>
         </div>
 
+        {/* Filter bar */}
+        <div style={S.filterBar}>
+          <span style={S.filterLabel}>Filter</span>
+
+          {/* Type filters */}
+          {[
+            { key: 'investor', label: 'Investors', icon: 'ti-user-dollar' },
+            { key: 'manager',  label: 'Managers',  icon: 'ti-briefcase' },
+            { key: 'contact',  label: 'Contacts',  icon: 'ti-address-book' },
+          ].map(t => (
+            <button
+              key={t.key}
+              style={activeType === t.key ? S.pillActive : S.pill}
+              onClick={() => setActiveType(activeType === t.key ? null : t.key)}>
+              <i className={`ti ${t.icon}`} style={{ fontSize: 11 }} />
+              {t.label}
+            </button>
+          ))}
+
+          <div style={S.pillDivider} />
+
+          {/* Source filters — only show sources that exist in data */}
+          {usedSources.map(src => (
+            <button
+              key={src}
+              style={activeSource === src ? S.pillActive : S.pill}
+              onClick={() => setActiveSource(activeSource === src ? null : src)}>
+              {src}
+            </button>
+          ))}
+
+          {/* Clear filters */}
+          {hasFilters && (
+            <>
+              <div style={S.pillDivider} />
+              <button style={{ ...S.pill, color: 'rgba(196,82,42,0.7)', borderColor: 'rgba(196,82,42,0.3)' }} onClick={clearFilters}>
+                <i className="ti ti-x" style={{ fontSize: 10 }} />
+                Clear
+              </button>
+            </>
+          )}
+
+          {/* Active filter summary */}
+          {hasFilters && (
+            <span style={{ fontSize: 9, color: 'rgba(170,152,125,0.38)', marginLeft: 4, letterSpacing: '0.08em' }}>
+              {list.length} contact{list.length !== 1 ? 's' : ''} shown
+            </span>
+          )}
+        </div>
+
+        {/* Board */}
         {loading ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(170,152,125,0.42)', fontSize: 12, letterSpacing: '0.1em' }}>
             Loading pipeline…
@@ -507,11 +591,15 @@ export default function App() {
           <div style={S.board}>
             {STAGES.map(stage => {
               const stageContacts = list.filter(c => c.stage === stage.id);
+              const visibleCount = colPages[stage.id] * CARDS_PER_PAGE;
+              const visible = stageContacts.slice(0, visibleCount);
+              const remaining = stageContacts.length - visibleCount;
+
               return (
                 <div key={stage.id} style={S.col}
                   onDragOver={e => e.preventDefault()}
                   onDrop={e => handleDrop(e, stage.id)}>
-                  <div style={{ height: 2, background: stage.c, opacity: 0.8, borderRadius: '6px 6px 0 0' }} />
+                  <div style={{ height: 2, background: stage.c, opacity: 0.8, borderRadius: '6px 6px 0 0', flexShrink: 0 }} />
                   <div style={S.colHdr}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                       <span style={{ width: 6, height: 6, borderRadius: '50%', background: stage.c, flexShrink: 0 }} />
@@ -519,46 +607,58 @@ export default function App() {
                     </div>
                     <span style={S.colCnt}>{stageContacts.length}</span>
                   </div>
-                  <div style={S.colBody}>
-                    {stageContacts.length === 0 && (
-                      <div style={{ textAlign: 'center', padding: '22px 10px', fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)', opacity: 0.5 }}>
-                        <i className="ti ti-inbox" style={{ fontSize: 18, display: 'block', marginBottom: 5 }} />
-                        No contacts
-                      </div>
-                    )}
-                    {stageContacts.map(c => {
-                      const b = badgeFor(c.last_contact_date);
-                      const av = avatarStyle(c.full_name);
-                      const ic = GH_ICONS[c.contact_type] || GH_ICONS.contact;
-                      return (
-                        <div key={c.id} style={S.card} draggable
-                          onDragStart={e => handleDragStart(e, c.id)}
-                          onDragEnd={() => setDragId(null)}>
-                          <div style={S.cardTop}>
-                            <div style={{ ...S.av, background: av.b, color: av.c }}>{initials(c.full_name)}</div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={S.cardName}>{c.full_name}</div>
-                              <div style={S.cardFirm}>{c.firm}</div>
-                            </div>
-                            <i className={`ti ${ic.icon}`} style={{ fontSize: 11, color: av.c, opacity: 0.7 }} />
-                          </div>
-                          <div style={S.cardMeta}>
-                            <div style={S.metaRow}><i className="ti ti-map-pin" style={{ fontSize: 11 }} />{c.city}</div>
-                            <div style={S.metaRow}><i className="ti ti-tag" style={{ fontSize: 11 }} />
-                              <span style={{ ...S.spl, color: stage.c, borderColor: stage.c + '44', background: stage.c + '12' }}>{c.source}</span>
-                            </div>
-                          </div>
-                          <div style={S.cardFt}>
-                            <span style={S[b.cl]}>{b.lb}</span>
-                            <div style={{ display: 'flex', gap: 2 }}>
-                              <button style={S.ibtn} onClick={() => setModal({ type: 'detail', contact: c })}><i className="ti ti-eye" style={{ fontSize: 12 }} /></button>
-                              <button style={S.ibtn} onClick={() => setModal({ type: 'edit', contact: c })}><i className="ti ti-edit" style={{ fontSize: 12 }} /></button>
-                              <button style={S.ibtn} onClick={() => handleDelete(c.id, c.full_name)}><i className="ti ti-trash" style={{ fontSize: 12 }} /></button>
-                            </div>
-                          </div>
+
+                  {/* Scrollable area */}
+                  <div style={S.colScroll}>
+                    <div style={S.colBody}>
+                      {stageContacts.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '22px 10px', fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)', opacity: 0.5 }}>
+                          <i className="ti ti-inbox" style={{ fontSize: 18, display: 'block', marginBottom: 5 }} />
+                          No contacts
                         </div>
-                      );
-                    })}
+                      )}
+                      {visible.map(c => {
+                        const b = badgeFor(c.last_contact_date);
+                        const av = avatarStyle(c.full_name);
+                        const ic = GH_ICONS[c.contact_type] || GH_ICONS.contact;
+                        return (
+                          <div key={c.id} style={S.card} draggable
+                            onDragStart={e => handleDragStart(e, c.id)}
+                            onDragEnd={() => setDragId(null)}>
+                            <div style={S.cardTop}>
+                              <div style={{ ...S.av, background: av.b, color: av.c }}>{initials(c.full_name)}</div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={S.cardName}>{c.full_name}</div>
+                                <div style={S.cardFirm}>{c.firm}</div>
+                              </div>
+                              <i className={`ti ${ic.icon}`} style={{ fontSize: 11, color: av.c, opacity: 0.7 }} />
+                            </div>
+                            <div style={S.cardMeta}>
+                              <div style={S.metaRow}><i className="ti ti-map-pin" style={{ fontSize: 11 }} />{c.city}</div>
+                              <div style={S.metaRow}><i className="ti ti-tag" style={{ fontSize: 11 }} />
+                                <span style={{ ...S.spl, color: stage.c, borderColor: stage.c + '44', background: stage.c + '12' }}>{c.source}</span>
+                              </div>
+                            </div>
+                            <div style={S.cardFt}>
+                              <span style={S[b.cl]}>{b.lb}</span>
+                              <div style={{ display: 'flex', gap: 2 }}>
+                                <button style={S.ibtn} onClick={() => setModal({ type: 'detail', contact: c })}><i className="ti ti-eye" style={{ fontSize: 12 }} /></button>
+                                <button style={S.ibtn} onClick={() => setModal({ type: 'edit', contact: c })}><i className="ti ti-edit" style={{ fontSize: 12 }} /></button>
+                                <button style={S.ibtn} onClick={() => handleDelete(c.id, c.full_name)}><i className="ti ti-trash" style={{ fontSize: 12 }} /></button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Show more button */}
+                    {remaining > 0 && (
+                      <button style={S.showMore} onClick={() => showMoreCol(stage.id)}>
+                        <i className="ti ti-chevron-down" style={{ fontSize: 11, marginRight: 5 }} />
+                        Show {Math.min(remaining, CARDS_PER_PAGE)} more · {remaining} remaining
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -567,6 +667,7 @@ export default function App() {
         )}
       </div>
 
+      {/* Modals */}
       {modal?.type === 'import' && (
         <ImportModal
           onClose={() => setModal(null)}
@@ -643,20 +744,19 @@ function CaptureModal({ onClose, onSaved, userId, showToast }) {
       const mediaType = dataUrl.split(';')[0].split(':')[1];
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.REACT_APP_ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01',
+        },
         body: JSON.stringify({
           model: 'claude-sonnet-4-6',
           max_tokens: 1000,
           messages: [{
             role: 'user',
             content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: mediaType, data: base64 },
-              },
-              {
-                type: 'text',
-                text: `Extract contact information from this business card or tare sheet image. Return ONLY a JSON object with these exact fields, no other text:
+              { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+              { type: 'text', text: `Extract contact information from this business card or tare sheet image. Return ONLY a JSON object with these exact fields, no other text:
 {
   "full_name": "",
   "email": "",
@@ -666,8 +766,7 @@ function CaptureModal({ onClose, onSaved, userId, showToast }) {
   "management_co": "Alpenglow Capital",
   "title": ""
 }
-If a field is not visible, leave it as an empty string.`,
-              },
+If a field is not visible, leave it as an empty string.` },
             ],
           }],
         }),
@@ -754,7 +853,7 @@ If a field is not visible, leave it as an empty string.`,
             )}
             {extracting ? (
               <div style={{ textAlign: 'center', padding: '20px 0', color: 'rgba(170,152,125,0.6)', fontSize: 11, letterSpacing: '0.1em' }}>
-                <i className="ti ti-loader" style={{ fontSize: 22, display: 'block', marginBottom: 8, animation: 'spin 1s linear infinite' }} />
+                <i className="ti ti-loader" style={{ fontSize: 22, display: 'block', marginBottom: 8 }} />
                 Extracting contact details…
               </div>
             ) : extracted && (
@@ -791,7 +890,6 @@ If a field is not visible, leave it as an empty string.`,
           </>
         )}
       </div>
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
@@ -883,9 +981,7 @@ function ContactModal({ modal, profile, onClose, onSave, onDelete, onMoveStage, 
               <div style={{ ...S.av, background: av.b, color: av.c, width: 28, height: 28, fontSize: 9 }}>{initials(c.full_name)}</div>
               <span style={S.mTitle}>{c.full_name}</span>
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button style={S.ibtn} onClick={onClose}><i className="ti ti-x" /></button>
-            </div>
+            <button style={S.ibtn} onClick={onClose}><i className="ti ti-x" /></button>
           </div>
           {[
             ['ti-building', 'Firm', c.firm],
