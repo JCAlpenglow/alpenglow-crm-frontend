@@ -102,13 +102,11 @@ const S = {
   stat: { flex: 1, padding: '9px 12px', textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.07)', position: 'relative', overflow: 'hidden' },
   statNum: { fontSize: 20, fontWeight: 500, lineHeight: 1 },
   statLbl: { fontSize: 8, letterSpacing: '0.16em', color: 'rgba(170,152,125,0.42)', textTransform: 'uppercase', marginTop: 3, fontWeight: 300 },
-  // Filter bar
   filterBar: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 18px', background: 'rgba(7,9,13,0.65)', borderBottom: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', backdropFilter: 'blur(8px)' },
   filterLabel: { fontSize: 8, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.38)', marginRight: 2 },
   pill: { fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 20, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(170,152,125,0.55)', fontFamily: "'Montserrat', sans-serif", transition: 'all 0.15s', display: 'inline-flex', alignItems: 'center', gap: 5 },
   pillActive: { fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 20, cursor: 'pointer', border: '1px solid rgba(196,82,42,0.5)', background: 'rgba(196,82,42,0.15)', color: 'rgba(232,113,58,0.9)', fontFamily: "'Montserrat', sans-serif", display: 'inline-flex', alignItems: 'center', gap: 5 },
   pillDivider: { width: 1, height: 14, background: 'rgba(255,255,255,0.08)', margin: '0 4px' },
-  // Board
   board: { display: 'flex', gap: 10, padding: 14, flex: 1, alignItems: 'flex-start', overflowX: 'auto' },
   col: { flex: '0 0 200px', background: 'rgba(10,14,22,0.75)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 6, backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column' },
   colHdr: { padding: '10px 12px 9px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
@@ -385,7 +383,6 @@ export default function App() {
     }
   };
 
-  // Reset column pages when filters change
   useEffect(() => {
     setColPages({ suspect: 1, prospect: 1, engagement: 1, invested: 1 });
   }, [activeSource, activeType, search]);
@@ -430,8 +427,6 @@ export default function App() {
   const st = stats();
   const list = filtered();
   const total = contacts.length || 1;
-
-  // Unique sources from actual contacts
   const usedSources = [...new Set(contacts.map(c => c.source).filter(Boolean))];
 
   return (
@@ -452,7 +447,6 @@ export default function App() {
       </div>
 
       <div style={S.content}>
-        {/* Header */}
         <div style={S.hdr}>
           <div style={S.brand}>
             <img src={LOGO_SVG} alt="Alpenglow Capital" style={S.logo} />
@@ -517,7 +511,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Stats */}
         <div style={S.stats}>
           {STAGES.map(stage => (
             <div key={stage.id} style={S.stat}>
@@ -532,38 +525,26 @@ export default function App() {
           </div>
         </div>
 
-        {/* Filter bar */}
         <div style={S.filterBar}>
           <span style={S.filterLabel}>Filter</span>
-
-          {/* Type filters */}
           {[
             { key: 'investor', label: 'Investors', icon: 'ti-user-dollar' },
             { key: 'manager',  label: 'Managers',  icon: 'ti-briefcase' },
             { key: 'contact',  label: 'Contacts',  icon: 'ti-address-book' },
           ].map(t => (
-            <button
-              key={t.key}
-              style={activeType === t.key ? S.pillActive : S.pill}
+            <button key={t.key} style={activeType === t.key ? S.pillActive : S.pill}
               onClick={() => setActiveType(activeType === t.key ? null : t.key)}>
               <i className={`ti ${t.icon}`} style={{ fontSize: 11 }} />
               {t.label}
             </button>
           ))}
-
           <div style={S.pillDivider} />
-
-          {/* Source filters — only show sources that exist in data */}
           {usedSources.map(src => (
-            <button
-              key={src}
-              style={activeSource === src ? S.pillActive : S.pill}
+            <button key={src} style={activeSource === src ? S.pillActive : S.pill}
               onClick={() => setActiveSource(activeSource === src ? null : src)}>
               {src}
             </button>
           ))}
-
-          {/* Clear filters */}
           {hasFilters && (
             <>
               <div style={S.pillDivider} />
@@ -573,8 +554,6 @@ export default function App() {
               </button>
             </>
           )}
-
-          {/* Active filter summary */}
           {hasFilters && (
             <span style={{ fontSize: 9, color: 'rgba(170,152,125,0.38)', marginLeft: 4, letterSpacing: '0.08em' }}>
               {list.length} contact{list.length !== 1 ? 's' : ''} shown
@@ -582,7 +561,6 @@ export default function App() {
           )}
         </div>
 
-        {/* Board */}
         {loading ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(170,152,125,0.42)', fontSize: 12, letterSpacing: '0.1em' }}>
             Loading pipeline…
@@ -594,7 +572,6 @@ export default function App() {
               const visibleCount = colPages[stage.id] * CARDS_PER_PAGE;
               const visible = stageContacts.slice(0, visibleCount);
               const remaining = stageContacts.length - visibleCount;
-
               return (
                 <div key={stage.id} style={S.col}
                   onDragOver={e => e.preventDefault()}
@@ -607,8 +584,6 @@ export default function App() {
                     </div>
                     <span style={S.colCnt}>{stageContacts.length}</span>
                   </div>
-
-                  {/* Scrollable area */}
                   <div style={S.colScroll}>
                     <div style={S.colBody}>
                       {stageContacts.length === 0 && (
@@ -651,8 +626,6 @@ export default function App() {
                         );
                       })}
                     </div>
-
-                    {/* Show more button */}
                     {remaining > 0 && (
                       <button style={S.showMore} onClick={() => showMoreCol(stage.id)}>
                         <i className="ti ti-chevron-down" style={{ fontSize: 11, marginRight: 5 }} />
@@ -667,7 +640,6 @@ export default function App() {
         )}
       </div>
 
-      {/* Modals */}
       {modal?.type === 'import' && (
         <ImportModal
           onClose={() => setModal(null)}
@@ -718,6 +690,7 @@ export default function App() {
   );
 }
 
+// ── CAPTURE MODAL — calls Railway backend ─────────────────────
 function CaptureModal({ onClose, onSaved, userId, showToast }) {
   const [step, setStep] = useState('upload');
   const [preview, setPreview] = useState(null);
@@ -742,40 +715,20 @@ function CaptureModal({ onClose, onSaved, userId, showToast }) {
     try {
       const base64 = dataUrl.split(',')[1];
       const mediaType = dataUrl.split(';')[0].split(':')[1];
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const apiUrl = process.env.REACT_APP_API_URL;
+      const response = await fetch(`${apiUrl}/api/extract`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.REACT_APP_ANTHROPIC_KEY,
-          'anthropic-version': '2023-06-01',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-              { type: 'text', text: `Extract contact information from this business card or tare sheet image. Return ONLY a JSON object with these exact fields, no other text:
-{
-  "full_name": "",
-  "email": "",
-  "phone": "",
-  "firm": "",
-  "city": "",
-  "management_co": "Alpenglow Capital",
-  "title": ""
-}
-If a field is not visible, leave it as an empty string.` },
-            ],
-          }],
+          base64,
+          filename: 'capture.jpg',
+          mediaType,
+          mode: 'contact',
         }),
       });
       const data = await response.json();
-      const text = data.content?.[0]?.text || '{}';
-      const clean = text.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
-      setExtracted(parsed);
+      if (data.error) throw new Error(data.error);
+      setExtracted(data);
     } catch (e) {
       showToast('Could not extract — please fill in manually');
       setExtracted({ full_name: '', email: '', phone: '', firm: '', city: '', management_co: 'Alpenglow Capital' });
