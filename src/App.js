@@ -701,34 +701,113 @@ function CaptureModal({ onClose, onSaved, userId, showToast }) {
   const handleFile = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setPreview(ev.target.result);
+
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      // Cap at 1600px on the long edge — plenty for OCR, keeps payload small
+      const MAX = 1600;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      URL.revokeObjectURL(objectUrl);
+      setPreview(dataUrl);
       setStep('confirm');
-      extractContact(ev.target.result, file.type);
+      extractContact(dataUrl);
     };
-    reader.readAsDataURL(file);
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      showToast('Could not read image — please try again');
+    };
+
+    img.src = objectUrl;
   };
 
-  const extractContact = async (dataUrl, originalMediaType) => {
+  const extractContact = async (dataUrl) => {
     setExtracting(true);
+    const apiKey = process.env.REACT_APP_ANTHROPIC_API_KEY;
+
+    if (!apiKey) {
+      showToast('API key not configured — please fill in manually');
+      setExtracted({ full_name: '', email: '', phone: '', firm: '', city: '', management_co: 'Alpenglow Capital' });
+      setExtracting(false);
+      return;
+    }
+
     try {
       const base64 = dataUrl.split(',')[1];
-      const mediaType = originalMediaType || 'image/jpeg';
-      const response = await fetch('https://re-deal-tracker.vercel.app/api/extract', {
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
         body: JSON.stringify({
-          base64,
-          filename: 'capture.jpg',
-          mediaType,
-          mode: 'contact',
+          model: 'claude-sonnet-4-6',
+          max_tokens: 512,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: 'image/jpeg',
+                  data: base64,
+                },
+              },
+              {
+                type: 'text',
+                text: `You are reviewing a business card or contact sheet.
+Extract contact information and return ONLY a valid JSON object with these exact keys (use empty string for any field not found):
+{
+  "full_name": "person full name",
+  "email": "email address",
+  "phone": "phone number",
+  "firm": "company or firm name",
+  "city": "city they are based in",
+  "management_co": "Alpenglow Capital",
+  "title": "job title or role"
+}
+Return ONLY the JSON object. No markdown, no explanation, no code fences.`,
+              },
+            ],
+          }],
         }),
       });
+
       const data = await response.json();
-      if (data.error) throw new Error(data.error);
-      setExtracted(data);
+
+      if (!response.ok) {
+        console.error('Anthropic error:', JSON.stringify(data));
+        throw new Error(data?.error?.message || `Anthropic error ${response.status}`);
+      }
+
+      const rawText = (data.content || [])
+        .map(b => b.text || '')
+        .join('')
+        .replace(/```json|```/g, '')
+        .trim();
+
+      let parsed = {};
+      try {
+        parsed = JSON.parse(rawText);
+      } catch {
+        console.error('JSON parse failed, raw text:', rawText);
+        parsed = { full_name: '', email: '', phone: '', firm: '', city: '', management_co: 'Alpenglow Capital' };
+      }
+
+      setExtracted(parsed);
     } catch (e) {
+      console.error('Extraction error:', e);
       showToast('Could not extract — please fill in manually');
       setExtracted({ full_name: '', email: '', phone: '', firm: '', city: '', management_co: 'Alpenglow Capital' });
     } finally {
@@ -782,7 +861,7 @@ function CaptureModal({ onClose, onSaved, userId, showToast }) {
               onClick={() => document.getElementById('captureInput').click()}>
               <i className="ti ti-camera" style={{ fontSize: 32, color: '#C4522A', display: 'block', marginBottom: 10 }} />
               <p style={{ fontSize: 12, color: 'rgba(200,182,155,0.7)', marginBottom: 6 }}>Take a photo or upload from gallery</p>
-              <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.38)' }}>Business card · Tare sheet · Any contact info</p>
+              <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.38)' }}>Business card · Tear sheet · Any contact info</p>
             </div>
             <input
               type="file"
@@ -846,6 +925,7 @@ function CaptureModal({ onClose, onSaved, userId, showToast }) {
   );
 }
 
+// ── CONTACT MODAL ─────────────────────────────────────────────
 function ContactModal({ modal, profile, onClose, onSave, onDelete, onMoveStage, onPromotionRequest, onPromotionApprove, showToast }) {
   const [form, setForm] = useState({
     name: modal.contact?.full_name || '',
