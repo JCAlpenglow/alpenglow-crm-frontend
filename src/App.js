@@ -149,7 +149,7 @@ const S = {
 };
 
 // ── LOGO — upload Alpenglow_Capital.png to the /public folder first ──
-const LOGO_SVG = '/Alpenglow_Capital.png';
+const LOGO_SVG = '/Colored Alpenglow Capital no Crossbars.png';
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState('');
