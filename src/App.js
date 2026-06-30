@@ -92,7 +92,7 @@ const S = {
   hdr: { background: 'rgba(7,9,13,0.88)', borderBottom: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(12px)', padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, position: 'sticky', top: 0, zIndex: 10 },
   brand: { display: 'flex', alignItems: 'center', gap: 10 },
   logo: { height: 34, width: 'auto' },
-  ptag: { fontSize: 9, letterSpacing: '0.26em', color: 'rgba(170,152,125,0.42)', textTransform: 'uppercase', fontWeight: 300, paddingLeft: 12, borderLeft: '1px solid rgba(196,82,42,0.28)', marginLeft: 2 },
+  ptag: { fontSize: 9, letterSpacing: '0.26em', color: 'rgba(170,152,125,0.42)', textTransform: 'uppercase', fontWeight: 300, paddingLeft: 12, borderLeft: '1px solid rgba(196,82,04,0.28)', marginLeft: 2 },
   hRight: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   btn: { fontFamily: "'Montserrat', sans-serif", fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 3, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.13)', background: 'rgba(255,255,255,0.03)', color: 'rgba(200,182,155,0.62)', display: 'inline-flex', alignItems: 'center', gap: 6 },
   btnP: { fontFamily: "'Montserrat', sans-serif", fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 3, cursor: 'pointer', border: '1px solid #C4522A', background: '#C4522A', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 6 },
@@ -148,7 +148,8 @@ const S = {
   toast: (show) => ({ position: 'fixed', bottom: 18, right: 18, background: 'rgba(11,15,24,0.96)', border: '1px solid rgba(196,82,42,0.4)', color: 'rgba(232,220,200,0.92)', padding: '9px 16px', borderRadius: 3, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', zIndex: 200, opacity: show ? 1 : 0, transition: 'opacity 0.3s', pointerEvents: 'none', fontFamily: "'Montserrat', sans-serif" }),
 };
 
-const LOGO_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='100' y1='10' x2='100' y2='90' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0%25' stop-color='%23C4522A'/%3E%3Cstop offset='100%25' stop-color='%231B3A5C'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M100 10 L20 85 L55 85 L75 55 L100 10 L125 55 L145 85 L180 85 Z' fill='url(%23g)'/%3E%3Cpath d='M88 55 L100 10 L112 55 Z' fill='rgba(0,0,0,0.2)'/%3E%3Ctext x='100' y='108' font-family='Montserrat,sans-serif' font-size='18' font-weight='500' letter-spacing='8' fill='%231B3A5C' text-anchor='middle'%3EALPENGLOW%3C/text%3E%3Ctext x='100' y='120' font-family='Montserrat,sans-serif' font-size='10' font-weight='300' letter-spacing='6' fill='%231B3A5C' text-anchor='middle'%3ECAPITAL%3C/text%3E%3C/svg%3E`;
+// ── LOGO — upload Alpenglow_Capital.png to the /public folder first ──
+const LOGO_SVG = '/Alpenglow_Capital.png';
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -707,7 +708,6 @@ function CaptureModal({ onClose, onSaved, userId, showToast }) {
 
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      // Cap at 1600px on the long edge — plenty for OCR, keeps payload small
       const MAX = 1600;
       const scale = Math.min(1, MAX / Math.max(img.width, img.height));
       canvas.width = Math.round(img.width * scale);
