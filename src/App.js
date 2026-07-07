@@ -19,6 +19,7 @@ const STAGES = [
   { id: 'prospect',   lb: 'Prospect',   c: '#3A6A96' },
   { id: 'engagement', lb: 'Engagement', c: '#C9A84C' },
   { id: 'invested',   lb: 'Invested',   c: '#5BAA7A' },
+  { id: 'nurture',    lb: 'Nurture',    c: '#8B6BA8' },
 ];
 
 const SOURCES = [
@@ -37,6 +38,7 @@ const STAGE_CLS = {
   prospect:   'ss-pro',
   engagement: 'ss-eng',
   invested:   'ss-inv',
+  nurture:    'ss-nur',
 };
 
 const CARDS_PER_PAGE = 15;
@@ -214,7 +216,7 @@ export default function App() {
   const [searchResults, setSearchResults] = useState([]);
   const [activeSource, setActiveSource] = useState(null);
   const [activeType, setActiveType] = useState(null);
-  const [colPages, setColPages] = useState({ suspect: 1, prospect: 1, engagement: 1, invested: 1 });
+  const [colPages, setColPages] = useState({ suspect: 1, prospect: 1, engagement: 1, invested: 1, nurture: 1 });
 
   useEffect(() => {
     pipelineDb.auth.getSession().then(({ data: { session } }) => {
@@ -385,7 +387,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    setColPages({ suspect: 1, prospect: 1, engagement: 1, invested: 1 });
+    setColPages({ suspect: 1, prospect: 1, engagement: 1, invested: 1, nurture: 1 });
   }, [activeSource, activeType, search]);
 
   const filtered = useCallback(() => {
@@ -404,7 +406,7 @@ export default function App() {
   }, [contacts, search, activeSource, activeType]);
 
   const stats = useCallback(() => {
-    const s = { suspect: 0, prospect: 0, engagement: 0, invested: 0, overdue: 0 };
+    const s = { suspect: 0, prospect: 0, engagement: 0, invested: 0, nurture: 0, overdue: 0 };
     contacts.forEach(c => {
       if (s[c.stage] !== undefined) s[c.stage]++;
       if (daysSince(c.last_contact_date) >= 30) s.overdue++;
