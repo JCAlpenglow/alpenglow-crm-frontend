@@ -726,6 +726,7 @@ export default function App() {
           onSave={handleSave}
           onDelete={handleDelete}
           onMoveStage={async (contactId, fromStage, toStage) => {
+            if (fromStage === toStage) { setModal(null); return; }
             const contact = contacts.find(c => c.id === contactId);
             if (toStage === 'invested') {
               setModal({ type: 'promote', contact });
