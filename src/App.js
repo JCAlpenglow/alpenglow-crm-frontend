@@ -14,6 +14,59 @@ import {
   signOut,
 } from './lib/supabase';
 
+// ── Kit + Nurture notification integration ──────────────────────
+const KIT_API_KEY = process.env.REACT_APP_KIT_API_KEY;
+const KIT_TAG_ID = process.env.REACT_APP_KIT_TAG_ID;
+const API_URL = process.env.REACT_APP_API_URL;
+
+async function subscribeToKitNurture(contact) {
+  if (!contact?.email) {
+    console.warn('No email on contact — skipped Kit subscribe');
+    return;
+  }
+  if (!KIT_API_KEY || !KIT_TAG_ID) {
+    console.warn('Kit env vars not configured — skipped Kit subscribe');
+    return;
+  }
+  try {
+    const res = await fetch(`https://api.kit.com/v4/tags/${KIT_TAG_ID}/subscribers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Kit-Api-Key': KIT_API_KEY,
+      },
+      body: JSON.stringify({ email_address: contact.email, first_name: contact.full_name }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.error('Kit subscribe error:', data);
+    }
+  } catch (e) {
+    console.error('Kit subscribe error:', e);
+  }
+}
+
+async function notifyNurtureMove(contact) {
+  if (!API_URL) {
+    console.warn('REACT_APP_API_URL not configured — skipped notification email');
+    return;
+  }
+  try {
+    await fetch(`${API_URL}/api/notify/nurture`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contact }),
+    });
+  } catch (e) {
+    console.error('Nurture notification error:', e);
+  }
+}
+
+function handleMoveToNurture(contact) {
+  subscribeToKitNurture(contact);
+  notifyNurtureMove(contact);
+}
+
 const STAGES = [
   { id: 'suspect',    lb: 'Suspect',    c: '#6B7A88' },
   { id: 'prospect',   lb: 'Prospect',   c: '#3A6A96' },
@@ -307,6 +360,7 @@ export default function App() {
       await moveStage(contact.id, contact.stage, stageId, user.id);
       setContacts(prev => prev.map(c => c.id === dragId ? { ...c, stage: stageId } : c));
       showToast('Moved to ' + STAGES.find(s => s.id === stageId).lb);
+      if (stageId === 'nurture') handleMoveToNurture(contact);
     } catch (e) {
       showToast('Error moving contact');
     }
@@ -672,8 +726,8 @@ export default function App() {
           onSave={handleSave}
           onDelete={handleDelete}
           onMoveStage={async (contactId, fromStage, toStage) => {
+            const contact = contacts.find(c => c.id === contactId);
             if (toStage === 'invested') {
-              const contact = contacts.find(c => c.id === contactId);
               setModal({ type: 'promote', contact });
               return;
             }
@@ -681,6 +735,7 @@ export default function App() {
             setContacts(prev => prev.map(c => c.id === contactId ? { ...c, stage: toStage } : c));
             setModal(null);
             showToast('Moved to ' + STAGES.find(s => s.id === toStage).lb);
+            if (toStage === 'nurture') handleMoveToNurture(contact);
           }}
           onPromotionRequest={handlePromotionRequest}
           onPromotionApprove={handlePromotionApprove}
