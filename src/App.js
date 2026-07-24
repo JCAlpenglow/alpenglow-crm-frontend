@@ -29,7 +29,9 @@ async function subscribeToKitNurture(contact) {
     return;
   }
   try {
-    const res = await fetch(`https://api.kit.com/v4/tags/${KIT_TAG_ID}/subscribers`, {
+    // Step 1: Create-or-update the subscriber (Kit requires the subscriber
+    // to already exist before it can be tagged).
+    const upsertRes = await fetch('https://api.kit.com/v4/subscribers', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -37,8 +39,23 @@ async function subscribeToKitNurture(contact) {
       },
       body: JSON.stringify({ email_address: contact.email, first_name: contact.full_name }),
     });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
+    if (!upsertRes.ok) {
+      const data = await upsertRes.json().catch(() => ({}));
+      console.error('Kit create-subscriber error:', data);
+      return;
+    }
+
+    // Step 2: Tag the now-existing subscriber.
+    const tagRes = await fetch(`https://api.kit.com/v4/tags/${KIT_TAG_ID}/subscribers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Kit-Api-Key': KIT_API_KEY,
+      },
+      body: JSON.stringify({ email_address: contact.email }),
+    });
+    if (!tagRes.ok) {
+      const data = await tagRes.json().catch(() => ({}));
       console.error('Kit subscribe error:', data);
     }
   } catch (e) {
