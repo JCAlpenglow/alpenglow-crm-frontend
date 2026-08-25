@@ -12,6 +12,8 @@ import {
   getCurrentProfile,
   signIn,
   signOut,
+  getContactNotes,
+  addContactNote,
 } from './lib/supabase';
 
 // ── Kit + Nurture notification integration ──────────────────────
@@ -153,6 +155,14 @@ const highlight = (text, q) => {
   );
 };
 
+const noteTimeAgo = (dateStr) => {
+  if (!dateStr) return '';
+  const d = daysSince(dateStr);
+  if (d <= 0) return 'today';
+  if (d === 1) return '1d ago';
+  return `${d}d ago`;
+};
+
 const S = {
   app: { fontFamily: "'Montserrat', system-ui, sans-serif", color: 'rgba(232,220,200,0.92)', minHeight: '100vh', position: 'relative' },
   scene: { position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' },
@@ -218,6 +228,11 @@ const S = {
   loginWrap: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse 130% 80% at 28% 18%, #1a1018 0%, #0d0f14 42%, #07090c 100%)' },
   loginCard: { background: 'rgba(11,15,24,0.97)', border: '1px solid rgba(255,255,255,0.13)', borderRadius: 8, width: 360, padding: 32 },
   toast: (show) => ({ position: 'fixed', bottom: 18, right: 18, background: 'rgba(11,15,24,0.96)', border: '1px solid rgba(196,82,42,0.4)', color: 'rgba(232,220,200,0.92)', padding: '9px 16px', borderRadius: 3, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', zIndex: 200, opacity: show ? 1 : 0, transition: 'opacity 0.3s', pointerEvents: 'none', fontFamily: "'Montserrat', sans-serif" }),
+  noteItem: { padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' },
+  noteText: { fontSize: 11, color: 'rgba(200,182,155,0.75)', lineHeight: 1.5, whiteSpace: 'pre-wrap' },
+  noteMeta: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 9, color: 'rgba(170,152,125,0.42)', letterSpacing: '0.04em' },
+  noteEmpty: { fontSize: 10, color: 'rgba(170,152,125,0.38)', padding: '10px 0', textAlign: 'center', letterSpacing: '0.06em' },
+  noteList: { maxHeight: 180, overflowY: 'auto', marginBottom: 10 },
 };
 
 // ── LOGO — upload Alpenglow_Capital.png to the /public folder first ──
@@ -1022,6 +1037,39 @@ function ContactModal({ modal, profile, onClose, onSave, onDelete, onMoveStage, 
     notes: '',
   });
 
+  // Notes timeline state (used only when modal.type === 'detail')
+  const [noteEntries, setNoteEntries] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [newNoteText, setNewNoteText] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
+
+  useEffect(() => {
+    if (modal.type === 'detail' && modal.contact?.id) {
+      let cancelled = false;
+      setNotesLoading(true);
+      getContactNotes(modal.contact.id)
+        .then(rows => { if (!cancelled) setNoteEntries(rows || []); })
+        .catch(() => { if (!cancelled) showToast('Error loading notes'); })
+        .finally(() => { if (!cancelled) setNotesLoading(false); });
+      return () => { cancelled = true; };
+    }
+  }, [modal.type, modal.contact?.id, showToast]);
+
+  const handleAddNote = async () => {
+    if (!newNoteText.trim() || !modal.contact?.id) return;
+    setAddingNote(true);
+    const authorName = profile?.full_name || profile?.email || 'Unknown';
+    try {
+      const created = await addContactNote(modal.contact.id, newNoteText.trim(), authorName);
+      setNoteEntries(prev => [created, ...prev]);
+      setNewNoteText('');
+    } catch (e) {
+      showToast('Error adding note');
+    } finally {
+      setAddingNote(false);
+    }
+  };
+
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
   const setP = (k) => (e) => setPromoDetails(p => ({ ...p, [k]: e.target.value }));
 
@@ -1118,8 +1166,45 @@ function ContactModal({ modal, profile, onClose, onSave, onDelete, onMoveStage, 
               </button>
             ))}
           </div>
+
           <div style={{ fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)', marginBottom: 6 }}>Notes</div>
-          <textarea style={S.fTa} defaultValue={c.notes} />
+
+          {notesLoading ? (
+            <div style={S.noteEmpty}>Loading notes…</div>
+          ) : (
+            <div style={S.noteList}>
+              {noteEntries.length === 0 ? (
+                <div style={S.noteEmpty}>No notes yet</div>
+              ) : (
+                noteEntries.map(n => (
+                  <div key={n.id} style={S.noteItem}>
+                    <div style={S.noteText}>{n.note_text}</div>
+                    <div style={S.noteMeta}>
+                      <span>{n.created_by || 'Unknown'}</span>
+                      <span>·</span>
+                      <span>{noteTimeAgo(n.created_at)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <textarea
+              style={{ ...S.fTa, minHeight: 44, flex: 1 }}
+              placeholder="Add a note…"
+              value={newNoteText}
+              onChange={e => setNewNoteText(e.target.value)}
+            />
+            <button
+              style={{ ...S.btnP, opacity: (addingNote || !newNoteText.trim()) ? 0.6 : 1 }}
+              onClick={handleAddNote}
+              disabled={addingNote || !newNoteText.trim()}>
+              {addingNote ? '…' : 'Add'}
+            </button>
+          </div>
+
           <div style={S.mFt}><button style={S.btn} onClick={onClose}>Close</button></div>
         </div>
       </div>
