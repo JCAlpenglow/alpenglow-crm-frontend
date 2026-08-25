@@ -224,3 +224,28 @@ export const getPipelineStats = async () => {
 
   return stats;
 };
+
+// ── CONTACT NOTES (TIMELINE) ────────────────────────────────
+export const getContactNotes = async (contactId) => {
+  const { data, error } = await pipelineDb
+    .from('contact_notes')
+    .select('*')
+    .eq('contact_id', contactId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+};
+
+export const addContactNote = async (contactId, noteText, createdBy) => {
+  const { data, error } = await pipelineDb
+    .from('contact_notes')
+    .insert([{
+      contact_id: contactId,
+      note_text: noteText,
+      created_by: createdBy,
+    }])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
