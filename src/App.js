@@ -163,6 +163,20 @@ const noteTimeAgo = (dateStr) => {
   return `${d}d ago`;
 };
 
+// Full date + time + relative "since" label, e.g. "Aug 25, 2026, 3:12 PM · today"
+const formatNoteTimestamp = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const dateTime = date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return `${dateTime} · ${noteTimeAgo(dateStr)}`;
+};
+
 const S = {
   app: { fontFamily: "'Montserrat', system-ui, sans-serif", color: 'rgba(232,220,200,0.92)', minHeight: '100vh', position: 'relative' },
   scene: { position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' },
@@ -1182,7 +1196,7 @@ function ContactModal({ modal, profile, onClose, onSave, onDelete, onMoveStage, 
                     <div style={S.noteMeta}>
                       <span>{n.created_by || 'Unknown'}</span>
                       <span>·</span>
-                      <span>{noteTimeAgo(n.created_at)}</span>
+                      <span>{formatNoteTimestamp(n.created_at)}</span>
                     </div>
                   </div>
                 ))
