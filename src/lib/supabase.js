@@ -231,6 +231,7 @@ export const getContactNotes = async (contactId) => {
     .from('contact_notes')
     .select('*')
     .eq('contact_id', contactId)
+    .eq('is_deleted', false)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data;
@@ -248,4 +249,12 @@ export const addContactNote = async (contactId, noteText, createdBy) => {
     .single();
   if (error) throw error;
   return data;
+};
+
+export const deleteContactNote = async (noteId) => {
+  const { error } = await pipelineDb
+    .from('contact_notes')
+    .update({ is_deleted: true })
+    .eq('id', noteId);
+  if (error) throw error;
 };
