@@ -14,6 +14,7 @@ import {
   signOut,
   getContactNotes,
   addContactNote,
+  deleteContactNote,
 } from './lib/supabase';
 
 // ── Kit + Nurture notification integration ──────────────────────
@@ -242,9 +243,10 @@ const S = {
   loginWrap: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse 130% 80% at 28% 18%, #1a1018 0%, #0d0f14 42%, #07090c 100%)' },
   loginCard: { background: 'rgba(11,15,24,0.97)', border: '1px solid rgba(255,255,255,0.13)', borderRadius: 8, width: 360, padding: 32 },
   toast: (show) => ({ position: 'fixed', bottom: 18, right: 18, background: 'rgba(11,15,24,0.96)', border: '1px solid rgba(196,82,42,0.4)', color: 'rgba(232,220,200,0.92)', padding: '9px 16px', borderRadius: 3, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', zIndex: 200, opacity: show ? 1 : 0, transition: 'opacity 0.3s', pointerEvents: 'none', fontFamily: "'Montserrat', sans-serif" }),
-  noteItem: { padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' },
+  noteItem: { padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 8, alignItems: 'flex-start' },
   noteText: { fontSize: 11, color: 'rgba(200,182,155,0.75)', lineHeight: 1.5, whiteSpace: 'pre-wrap' },
   noteMeta: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 9, color: 'rgba(170,152,125,0.42)', letterSpacing: '0.04em' },
+  noteDelBtn: { width: 18, height: 18, borderRadius: 3, border: 'none', background: 'transparent', cursor: 'pointer', color: 'rgba(170,152,125,0.35)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   noteEmpty: { fontSize: 10, color: 'rgba(170,152,125,0.38)', padding: '10px 0', textAlign: 'center', letterSpacing: '0.06em' },
   noteList: { maxHeight: 180, overflowY: 'auto', marginBottom: 10 },
 };
@@ -1084,6 +1086,17 @@ function ContactModal({ modal, profile, onClose, onSave, onDelete, onMoveStage, 
     }
   };
 
+  const handleDeleteNote = async (noteId) => {
+    if (!window.confirm('Delete this note?')) return;
+    try {
+      await deleteContactNote(noteId);
+      setNoteEntries(prev => prev.filter(n => n.id !== noteId));
+      showToast('Note deleted');
+    } catch (e) {
+      showToast('Error deleting note');
+    }
+  };
+
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
   const setP = (k) => (e) => setPromoDetails(p => ({ ...p, [k]: e.target.value }));
 
@@ -1192,12 +1205,17 @@ function ContactModal({ modal, profile, onClose, onSave, onDelete, onMoveStage, 
               ) : (
                 noteEntries.map(n => (
                   <div key={n.id} style={S.noteItem}>
-                    <div style={S.noteText}>{n.note_text}</div>
-                    <div style={S.noteMeta}>
-                      <span>{n.created_by || 'Unknown'}</span>
-                      <span>·</span>
-                      <span>{formatNoteTimestamp(n.created_at)}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={S.noteText}>{n.note_text}</div>
+                      <div style={S.noteMeta}>
+                        <span>{n.created_by || 'Unknown'}</span>
+                        <span>·</span>
+                        <span>{formatNoteTimestamp(n.created_at)}</span>
+                      </div>
                     </div>
+                    <button style={S.noteDelBtn} onClick={() => handleDeleteNote(n.id)} title="Delete note">
+                      <i className="ti ti-x" style={{ fontSize: 11 }} />
+                    </button>
                   </div>
                 ))
               )}
