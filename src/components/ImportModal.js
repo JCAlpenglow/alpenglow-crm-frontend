@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { createContact } from '../lib/supabase';
 
+// Alpenglow Design System: midnight #05081C, flame #FA4536, white; square corners.
+const FONT = "'Eina 03', Outfit, 'Helvetica Neue', Arial, sans-serif";
 const S = {
-  ovl: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
-  modal: { background: 'rgba(11,15,24,0.97)', border: '1px solid rgba(255,255,255,0.13)', borderRadius: 8, width: 460, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', padding: 22 },
-  mHdr: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.07)' },
-  mTitle: { fontSize: 10, fontWeight: 500, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(232,220,200,0.92)' },
-  ibtn: { width: 24, height: 24, borderRadius: 3, border: 'none', background: 'transparent', cursor: 'pointer', color: 'rgba(170,152,125,0.42)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
-  btn: { fontFamily: "'Montserrat', sans-serif", fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 3, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.13)', background: 'rgba(255,255,255,0.03)', color: 'rgba(200,182,155,0.62)', display: 'inline-flex', alignItems: 'center', gap: 6 },
-  btnP: { fontFamily: "'Montserrat', sans-serif", fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 3, cursor: 'pointer', border: '1px solid #C4522A', background: '#C4522A', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 6 },
-  mFt: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 15, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)' },
-  zone: { border: '1px dashed rgba(196,82,42,0.42)', borderRadius: 5, padding: 26, textAlign: 'center', cursor: 'pointer', marginBottom: 13, background: 'rgba(196,82,42,0.04)', transition: 'background 0.15s' },
-  fInp: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.13)', borderRadius: 3, padding: '7px 9px', fontSize: 12, fontFamily: "'Montserrat', sans-serif", color: 'rgba(232,220,200,0.92)', width: '100%' },
+  ovl: { position: 'fixed', inset: 0, background: 'rgba(5,8,28,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
+  modal: { background: '#FFFFFF', border: '1px solid #DCDDE2', borderTop: '3px solid #05081C', borderRadius: 0, width: 480, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', padding: 24 },
+  mHdr: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #DCDDE2' },
+  mTitle: { fontSize: 16, fontWeight: 600, color: '#05081C' },
+  ibtn: { width: 28, height: 28, borderRadius: 0, border: 'none', background: 'transparent', cursor: 'pointer', color: '#555B66', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+  btn: { fontFamily: FONT, fontSize: 13, fontWeight: 500, padding: '8px 14px', borderRadius: 0, cursor: 'pointer', border: '1px solid #DCDDE2', background: '#FFFFFF', color: '#05081C', display: 'inline-flex', alignItems: 'center', gap: 6 },
+  btnP: { fontFamily: FONT, fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 0, cursor: 'pointer', border: '1px solid #05081C', background: '#05081C', color: '#FFFFFF', display: 'inline-flex', alignItems: 'center', gap: 6 },
+  mFt: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #DCDDE2' },
+  zone: { border: '1px dashed #A7ACB5', borderRadius: 0, padding: 26, textAlign: 'center', cursor: 'pointer', marginBottom: 13, background: '#F3F3F5' },
+  fInp: { background: '#FFFFFF', border: '1px solid #DCDDE2', borderRadius: 0, padding: '8px 10px', fontSize: 13, fontFamily: FONT, color: '#05081C', width: '100%' },
 };
 
 export default function ImportModal({ onClose, onImported, userId, showToast }) {
@@ -75,18 +77,18 @@ export default function ImportModal({ onClose, onImported, userId, showToast }) 
     <div style={S.ovl} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={S.modal}>
         <div style={S.mHdr}>
-          <span style={S.mTitle}>Import Contacts</span>
+          <span style={S.mTitle}>Import contacts</span>
           <button style={S.ibtn} onClick={onClose}>
             <i className="ti ti-x" />
           </button>
         </div>
 
         <div style={S.zone} onClick={() => document.getElementById('csvInput').click()}>
-          <i className="ti ti-file-upload" style={{ fontSize: 26, color: '#C4522A', display: 'block', marginBottom: 8 }} />
-          <p style={{ fontSize: 11, color: 'rgba(200,182,155,0.55)', lineHeight: 1.5 }}>
-            Upload manager tare sheet or contact CSV
+          <i className="ti ti-file-upload" style={{ fontSize: 26, color: '#FA4536', display: 'block', marginBottom: 8 }} />
+          <p style={{ fontSize: 11, color: '#555B66', lineHeight: 1.5 }}>
+            Upload a manager tear sheet or contact CSV
           </p>
-          <p style={{ fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.38)', marginTop: 4 }}>
+          <p style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555B66', marginTop: 4 }}>
             Name · Email · Phone · Firm · City · Source · Type
           </p>
         </div>
@@ -100,17 +102,17 @@ export default function ImportModal({ onClose, onImported, userId, showToast }) 
 
         {pending.length > 0 && (
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 8, color: 'rgba(170,152,125,0.48)', margin: '0 0 4px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 10, color: '#555B66', margin: '0 0 4px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
               {pending.length} contacts ready
             </div>
-            <div style={{ maxHeight: 110, overflowY: 'auto', fontSize: 11, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 3, padding: 8, marginBottom: 10 }}>
+            <div style={{ maxHeight: 110, overflowY: 'auto', fontSize: 11, border: '1px solid #DCDDE2', borderRadius: 2, padding: 8, marginBottom: 10 }}>
               {pending.slice(0, 8).map((c, i) => (
-                <div key={i} style={{ padding: '2px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', color: 'rgba(200,182,155,0.55)' }}>
+                <div key={i} style={{ padding: '2px 0', borderBottom: '1px solid #DCDDE2', color: '#555B66' }}>
                   {c.full_name} · {c.firm}
                 </div>
               ))}
               {pending.length > 8 && (
-                <div style={{ padding: '4px 0', color: 'rgba(170,152,125,0.42)' }}>
+                <div style={{ padding: '4px 0', color: '#555B66' }}>
                   …and {pending.length - 8} more
                 </div>
               )}
@@ -118,7 +120,7 @@ export default function ImportModal({ onClose, onImported, userId, showToast }) 
           </div>
         )}
 
-        <p style={{ fontSize: 8, letterSpacing: '0.08em', color: 'rgba(170,152,125,0.36)', lineHeight: 1.6 }}>
+        <p style={{ fontSize: 10, letterSpacing: '0.08em', color: '#555B66', lineHeight: 1.6 }}>
           Imports as Suspect by default. Include Stage and Type columns to override.
         </p>
 
