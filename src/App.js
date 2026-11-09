@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ImportModal from './components/ImportModal';
+import { LOGO_WHITE, LOGO_COLOR } from './brand';
 import {
   pipelineDb,
   getContacts,
@@ -87,12 +88,31 @@ function handleMoveToNurture(contact) {
   notifyNurtureMove(contact);
 }
 
+// ── Alpenglow Design System ─────────────────────────────────────
+// Midnight #05081C (primary), flame #FA4536 (accent: one thing per screen,
+// here overdue follow-ups and Invested), white ground, square corners.
+const FONT = "'Eina 03', Outfit, 'Helvetica Neue', Arial, sans-serif";
+const C = {
+  midnight: '#05081C',
+  flame: '#FA4536',
+  flameDeep: '#CC2C1D',   // flame for small text (5.3:1 on white)
+  white: '#FFFFFF',
+  surfaceAlt: '#F3F3F5',
+  ink: '#05081C',
+  inkMuted: '#555B66',
+  hairline: '#DCDDE2',
+  slate: '#5C6270',
+  gray: '#A7ACB5',
+  lightGray: '#D9DBE0',
+};
+
+// Stage markers use the brand's neutral sequence; flame marks Invested.
 const STAGES = [
-  { id: 'suspect',    lb: 'Suspect',    c: '#6B7A88' },
-  { id: 'prospect',   lb: 'Prospect',   c: '#3A6A96' },
-  { id: 'engagement', lb: 'Engagement', c: '#C9A84C' },
-  { id: 'invested',   lb: 'Invested',   c: '#5BAA7A' },
-  { id: 'nurture',    lb: 'Nurture',    c: '#8B6BA8' },
+  { id: 'suspect',    lb: 'Suspect',    c: C.gray },
+  { id: 'prospect',   lb: 'Prospect',   c: C.slate },
+  { id: 'engagement', lb: 'Engagement', c: C.midnight },
+  { id: 'invested',   lb: 'Invested',   c: C.flame },
+  { id: 'nurture',    lb: 'Nurture',    c: C.lightGray, edge: C.gray },
 ];
 
 const SOURCES = [
@@ -101,20 +121,16 @@ const SOURCES = [
 ];
 
 const GH_ICONS = {
-  investor: { cls: 'ico-inv', icon: 'ti-user-dollar' },
-  manager:  { cls: 'ico-mgr', icon: 'ti-briefcase'   },
-  contact:  { cls: 'ico-gen', icon: 'ti-address-book' },
+  investor: { icon: 'ti-user-dollar',  lb: 'Investor' },
+  manager:  { icon: 'ti-briefcase',    lb: 'Manager' },
+  contact:  { icon: 'ti-address-book', lb: 'Contact' },
 };
 
-const STAGE_CLS = {
-  suspect:    'ss-sus',
-  prospect:   'ss-pro',
-  engagement: 'ss-eng',
-  invested:   'ss-inv',
-  nurture:    'ss-nur',
-};
-
-const CARDS_PER_PAGE = 15;
+const CARDS_PER_PAGE = 15;   // board view
+const ROWS_PER_PAGE = 50;    // list view, per stage group
+const COLLAPSE_KEY = 'ag-crm-collapsed';
+const VIEW_KEY = 'ag-crm-view';
+const DEFAULT_COLLAPSED = { nurture: true };
 
 const daysSince = (dateStr) => {
   if (!dateStr) return 999;
@@ -126,23 +142,14 @@ const initials = (name) => {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 };
 
-const avatarStyle = (name) => {
-  if (!name) return { b: 'rgba(107,122,136,0.28)', c: '#8A9AA8' };
-  const p = [
-    { b: 'rgba(58,106,150,.28)',  c: '#7EB8E0' },
-    { b: 'rgba(196,82,42,.22)',   c: '#E89070' },
-    { b: 'rgba(91,170,122,.22)',  c: '#80C8A0' },
-    { b: 'rgba(201,168,76,.22)',  c: '#D4B44A' },
-    { b: 'rgba(140,100,170,.2)',  c: '#B08ACC' },
-  ];
-  return p[name.charCodeAt(0) % p.length];
-};
+const avatarStyle = () => ({ b: C.surfaceAlt, c: C.midnight });
 
 const badgeFor = (dateStr) => {
   const d = daysSince(dateStr);
+  if (d >= 999) return { cl: 'bod', lb: 'Never' };
   if (d >= 30) return { cl: 'bod', lb: d + 'd ago' };
   if (d >= 20) return { cl: 'bwn', lb: d + 'd ago' };
-  return { cl: 'bok', lb: d + 'd ago' };
+  return { cl: 'bok', lb: d <= 0 ? 'Today' : d + 'd ago' };
 };
 
 const highlight = (text, q) => {
@@ -150,8 +157,8 @@ const highlight = (text, q) => {
   const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
   const parts = text.split(re);
   return parts.map((part, i) =>
-    re.test(part)
-      ? <mark key={i} style={{ background: 'rgba(196,82,42,0.28)', color: 'rgba(232,113,58,0.95)', borderRadius: 2, padding: '0 1px' }}>{part}</mark>
+    i % 2 === 1
+      ? <mark key={i} style={{ background: 'rgba(250,69,54,0.16)', color: C.ink, padding: '0 1px' }}>{part}</mark>
       : part
   );
 };
@@ -178,81 +185,140 @@ const formatNoteTimestamp = (dateStr) => {
   return `${dateTime} · ${noteTimeAgo(dateStr)}`;
 };
 
-const S = {
-  app: { fontFamily: "'Montserrat', system-ui, sans-serif", color: 'rgba(232,220,200,0.92)', minHeight: '100vh', position: 'relative' },
-  scene: { position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' },
-  sky: { position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 130% 80% at 28% 18%, #1a1018 0%, #0d0f14 42%, #07090c 100%)' },
-  glL: { position: 'absolute', top: 0, left: -60, width: 420, height: 360, background: 'radial-gradient(ellipse 55% 52% at 22% 30%, rgba(175,75,28,0.22) 0%, transparent 65%)' },
-  glR: { position: 'absolute', top: 0, right: 100, width: 340, height: 300, background: 'radial-gradient(ellipse 55% 55% at 68% 22%, rgba(28,56,115,0.17) 0%, transparent 68%)' },
-  fg: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 220, background: 'linear-gradient(to top, #050608 0%, rgba(5,6,8,0.85) 55%, transparent 100%)' },
-  content: { position: 'relative', zIndex: 1, minHeight: '100vh', display: 'flex', flexDirection: 'column' },
-  hdr: { background: 'rgba(7,9,13,0.88)', borderBottom: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(12px)', padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, position: 'sticky', top: 0, zIndex: 10 },
-  brand: { display: 'flex', alignItems: 'center', gap: 10 },
-  logo: { height: 34, width: 'auto' },
-  ptag: { fontSize: 9, letterSpacing: '0.26em', color: 'rgba(170,152,125,0.42)', textTransform: 'uppercase', fontWeight: 300, paddingLeft: 12, borderLeft: '1px solid rgba(196,82,04,0.28)', marginLeft: 2 },
-  hRight: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  btn: { fontFamily: "'Montserrat', sans-serif", fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 3, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.13)', background: 'rgba(255,255,255,0.03)', color: 'rgba(200,182,155,0.62)', display: 'inline-flex', alignItems: 'center', gap: 6 },
-  btnP: { fontFamily: "'Montserrat', sans-serif", fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 3, cursor: 'pointer', border: '1px solid #C4522A', background: '#C4522A', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 6 },
-  btnActive: { fontFamily: "'Montserrat', sans-serif", fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 3, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.1)', color: 'rgba(232,220,200,0.92)', display: 'inline-flex', alignItems: 'center', gap: 6 },
-  ibtn: { width: 24, height: 24, borderRadius: 3, border: 'none', background: 'transparent', cursor: 'pointer', color: 'rgba(170,152,125,0.42)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
-  stats: { display: 'flex', background: 'rgba(7,9,13,0.78)', borderBottom: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(8px)' },
-  stat: { flex: 1, padding: '9px 12px', textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.07)', position: 'relative', overflow: 'hidden' },
-  statNum: { fontSize: 20, fontWeight: 500, lineHeight: 1 },
-  statLbl: { fontSize: 8, letterSpacing: '0.16em', color: 'rgba(170,152,125,0.42)', textTransform: 'uppercase', marginTop: 3, fontWeight: 300 },
-  filterBar: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 18px', background: 'rgba(7,9,13,0.65)', borderBottom: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', backdropFilter: 'blur(8px)' },
-  filterLabel: { fontSize: 8, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.38)', marginRight: 2 },
-  pill: { fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 20, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(170,152,125,0.55)', fontFamily: "'Montserrat', sans-serif", transition: 'all 0.15s', display: 'inline-flex', alignItems: 'center', gap: 5 },
-  pillActive: { fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 20, cursor: 'pointer', border: '1px solid rgba(196,82,42,0.5)', background: 'rgba(196,82,42,0.15)', color: 'rgba(232,113,58,0.9)', fontFamily: "'Montserrat', sans-serif", display: 'inline-flex', alignItems: 'center', gap: 5 },
-  pillDivider: { width: 1, height: 14, background: 'rgba(255,255,255,0.08)', margin: '0 4px' },
-  board: { display: 'flex', gap: 10, padding: 14, flex: 1, alignItems: 'flex-start', overflowX: 'auto' },
-  col: { flex: '0 0 200px', background: 'rgba(10,14,22,0.75)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 6, backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column' },
-  colHdr: { padding: '10px 12px 9px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
-  colName: { fontSize: 9, fontWeight: 500, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(200,182,155,0.62)' },
-  colCnt: { fontSize: 9, color: 'rgba(170,152,125,0.42)', background: 'rgba(255,255,255,0.06)', borderRadius: 9, padding: '1px 7px' },
-  colScroll: { overflowY: 'auto', flex: 1, minHeight: 120, maxHeight: 'calc(100vh - 280px)' },
-  colBody: { padding: 8, display: 'flex', flexDirection: 'column', gap: 7 },
-  card: { background: 'rgba(14,18,28,0.86)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 5, padding: '10px 11px', cursor: 'grab', userSelect: 'none' },
-  cardTop: { display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 7 },
-  av: { width: 28, height: 28, borderRadius: '50%', fontSize: 9, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  cardName: { fontSize: 12, fontWeight: 500, color: 'rgba(232,220,200,0.92)', lineHeight: 1.25, flex: 1 },
-  cardFirm: { fontSize: 10, color: 'rgba(170,152,125,0.42)', marginTop: 1 },
-  cardMeta: { display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 7 },
-  metaRow: { fontSize: 10, color: 'rgba(200,182,155,0.62)', display: 'flex', alignItems: 'center', gap: 4 },
-  spl: { fontSize: 8, letterSpacing: '0.09em', textTransform: 'uppercase', padding: '2px 5px', borderRadius: 2, border: '1px solid' },
-  cardFt: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.07)' },
-  bok: { fontSize: 8, letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 2, fontWeight: 500, background: 'rgba(91,170,122,.14)', color: '#6DBF90', border: '1px solid rgba(91,170,122,.22)' },
-  bwn: { fontSize: 8, letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 2, fontWeight: 500, background: 'rgba(201,168,76,.14)', color: '#D4B44A', border: '1px solid rgba(201,168,76,.25)' },
-  bod: { fontSize: 8, letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 2, fontWeight: 500, background: 'rgba(196,82,42,.18)', color: '#E07858', border: '1px solid rgba(196,82,42,.3)' },
-  showMore: { margin: '4px 8px 8px', padding: '7px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: 'rgba(170,152,125,0.55)', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', textAlign: 'center', fontFamily: "'Montserrat', sans-serif", width: 'calc(100% - 16px)' },
-  ovl: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
-  modal: { background: 'rgba(11,15,24,0.97)', border: '1px solid rgba(255,255,255,0.13)', borderRadius: 8, width: 460, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', padding: 22 },
-  mHdr: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.07)' },
-  mTitle: { fontSize: 10, fontWeight: 500, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(232,220,200,0.92)' },
-  fGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 11 },
-  fFull: { gridColumn: '1 / -1' },
-  fGrp: { display: 'flex', flexDirection: 'column', gap: 4 },
-  fLbl: { fontSize: 8, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)' },
-  fInp: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.13)', borderRadius: 3, padding: '7px 9px', fontSize: 12, fontFamily: "'Montserrat', sans-serif", color: 'rgba(232,220,200,0.92)', width: '100%' },
-  fTa: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.13)', borderRadius: 3, padding: '7px 9px', fontSize: 12, fontFamily: "'Montserrat', sans-serif", color: 'rgba(232,220,200,0.92)', width: '100%', minHeight: 68, resize: 'vertical' },
-  mFt: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 15, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)' },
-  sDrop: { position: 'absolute', top: 'calc(100% + 7px)', right: 0, width: 380, background: 'rgba(10,13,21,0.99)', border: '1px solid rgba(255,255,255,0.13)', borderRadius: 6, overflow: 'hidden', zIndex: 200, maxHeight: 480, overflowY: 'auto' },
-  sSec: { fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)', padding: '9px 13px 5px', borderTop: '0.5px solid rgba(255,255,255,0.06)' },
-  sRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '7px 13px', cursor: 'pointer', borderBottom: '0.5px solid rgba(255,255,255,0.04)' },
-  sIco: { width: 29, height: 29, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13 },
-  sFt: { padding: '8px 13px', borderTop: '0.5px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  loginWrap: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse 130% 80% at 28% 18%, #1a1018 0%, #0d0f14 42%, #07090c 100%)' },
-  loginCard: { background: 'rgba(11,15,24,0.97)', border: '1px solid rgba(255,255,255,0.13)', borderRadius: 8, width: 360, padding: 32 },
-  toast: (show) => ({ position: 'fixed', bottom: 18, right: 18, background: 'rgba(11,15,24,0.96)', border: '1px solid rgba(196,82,42,0.4)', color: 'rgba(232,220,200,0.92)', padding: '9px 16px', borderRadius: 3, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', zIndex: 200, opacity: show ? 1 : 0, transition: 'opacity 0.3s', pointerEvents: 'none', fontFamily: "'Montserrat', sans-serif" }),
-  noteItem: { padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 8, alignItems: 'flex-start' },
-  noteText: { fontSize: 11, color: 'rgba(200,182,155,0.75)', lineHeight: 1.5, whiteSpace: 'pre-wrap' },
-  noteMeta: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 9, color: 'rgba(170,152,125,0.42)', letterSpacing: '0.04em' },
-  noteDelBtn: { width: 18, height: 18, borderRadius: 3, border: 'none', background: 'transparent', cursor: 'pointer', color: 'rgba(170,152,125,0.35)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  noteEmpty: { fontSize: 10, color: 'rgba(170,152,125,0.38)', padding: '10px 0', textAlign: 'center', letterSpacing: '0.06em' },
-  noteList: { maxHeight: 180, overflowY: 'auto', marginBottom: 10 },
+const readStored = (key, fallback) => {
+  try {
+    const v = window.localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch (e) { return fallback; }
+};
+const writeStored = (key, value) => {
+  try { window.localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ }
 };
 
-// ── LOGO — upload Alpenglow_Capital.png to the /public folder first ──
-const LOGO_SVG = '/Colored Alpenglow Capital no Crossbars.png';
+const HDR_H = 60; // sticky header height, used to stack the stage headers under it
+
+const btnBase = { fontFamily: FONT, fontSize: 13, fontWeight: 500, padding: '8px 14px', borderRadius: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' };
+const pillBase = { fontFamily: FONT, fontSize: 12, padding: '5px 11px', borderRadius: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 };
+const badgeBase = { fontSize: 12, padding: '2px 7px', borderRadius: 0, fontWeight: 500, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' };
+const eyebrow = { fontSize: 11, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.flameDeep };
+
+const S = {
+  app: { fontFamily: FONT, color: C.ink, minHeight: '100vh', background: C.surfaceAlt },
+  content: { minHeight: '100vh', display: 'flex', flexDirection: 'column' },
+
+  // Header: midnight title band with the white logo
+  hdr: { background: C.midnight, minHeight: HDR_H, padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, position: 'sticky', top: 0, zIndex: 20 },
+  brand: { display: 'flex', alignItems: 'center', gap: 14 },
+  logo: { height: 26, width: 'auto', display: 'block' },
+  ptag: { fontSize: 13, color: 'rgba(255,255,255,0.72)', paddingLeft: 14, borderLeft: '1px solid rgba(255,255,255,0.22)' },
+  hRight: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  hSearch: { fontFamily: FONT, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: 0, padding: '8px 10px 8px 30px', fontSize: 13, color: C.white, width: 260 },
+  hBtn: { ...btnBase, border: '1px solid rgba(255,255,255,0.3)', background: 'transparent', color: C.white },
+  hBtnP: { ...btnBase, fontWeight: 600, border: `1px solid ${C.white}`, background: C.white, color: C.midnight },
+  hIbtn: { width: 34, height: 34, borderRadius: 0, border: 'none', background: 'transparent', cursor: 'pointer', color: 'rgba(255,255,255,0.75)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+
+  // Buttons on white
+  btn: { ...btnBase, border: `1px solid ${C.hairline}`, background: C.white, color: C.ink },
+  btnP: { ...btnBase, fontWeight: 600, border: `1px solid ${C.midnight}`, background: C.midnight, color: C.white },
+  btnActive: { ...btnBase, border: `1px solid ${C.midnight}`, background: C.midnight, color: C.white },
+  ibtn: { width: 28, height: 28, borderRadius: 0, border: 'none', background: 'transparent', cursor: 'pointer', color: C.inkMuted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+
+  // Stage summary strip
+  stats: { display: 'flex', background: C.white, borderBottom: `1px solid ${C.hairline}`, overflowX: 'auto' },
+  stat: { flex: '1 0 110px', padding: '12px 14px', textAlign: 'left', position: 'relative', background: C.white, border: 'none', borderRight: `1px solid ${C.hairline}`, cursor: 'pointer', fontFamily: FONT, color: C.ink },
+  statNum: { fontSize: 24, fontWeight: 700, lineHeight: 1.1, color: C.ink, fontVariantNumeric: 'tabular-nums' },
+  statLbl: { fontSize: 12, color: C.inkMuted, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 },
+
+  // Toolbar: view switch, filters, expand/collapse
+  filterBar: { display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: C.white, borderBottom: `1px solid ${C.hairline}`, flexWrap: 'wrap' },
+  filterLabel: { fontSize: 12, color: C.inkMuted, marginRight: 2 },
+  pill: { ...pillBase, border: `1px solid ${C.hairline}`, background: C.white, color: C.ink },
+  pillActive: { ...pillBase, border: `1px solid ${C.midnight}`, background: C.midnight, color: C.white },
+  pillDivider: { width: 1, height: 18, background: C.hairline, margin: '0 4px' },
+  seg: { display: 'inline-flex', border: `1px solid ${C.hairline}` },
+  segBtn: (on) => ({ ...pillBase, border: 'none', background: on ? C.midnight : C.white, color: on ? C.white : C.ink, padding: '6px 12px' }),
+
+  // ── List view: one collapsible group per stage ──
+  groups: { padding: '16px 20px 48px', display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 1440, width: '100%', margin: '0 auto' },
+  group: { background: C.white, border: `1px solid ${C.hairline}` },
+  groupHdr: (open, over) => ({ position: 'sticky', top: HDR_H, zIndex: 5, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: over ? '#E8E9ED' : C.white, borderBottom: open ? `1px solid ${C.hairline}` : 'none', cursor: 'pointer', userSelect: 'none', width: '100%', border: 'none', fontFamily: FONT, textAlign: 'left' }),
+  groupName: { fontSize: 16, fontWeight: 600, color: C.ink },
+  groupCnt: { fontSize: 13, color: C.inkMuted, fontVariantNumeric: 'tabular-nums' },
+  groupOverdue: { fontSize: 13, color: C.flameDeep, fontWeight: 500 },
+  tableWrap: { overflowX: 'auto' },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 900 },
+  th: { textAlign: 'left', fontWeight: 600, fontSize: 12, color: C.inkMuted, padding: '8px 12px', borderBottom: `1px solid ${C.hairline}`, background: C.white, whiteSpace: 'nowrap' },
+  thBtn: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: C.inkMuted, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 },
+  td: { padding: '8px 12px', borderBottom: `1px solid ${C.hairline}`, verticalAlign: 'middle', color: C.ink },
+  tdMuted: { padding: '8px 12px', borderBottom: `1px solid ${C.hairline}`, verticalAlign: 'middle', color: C.inkMuted },
+  rowName: { fontWeight: 600, color: C.ink },
+  rowSub: { fontSize: 12, color: C.inkMuted, marginTop: 1 },
+  stageSel: { fontFamily: FONT, fontSize: 13, padding: '4px 6px', border: `1px solid ${C.hairline}`, borderRadius: 0, background: C.white, color: C.ink, cursor: 'pointer' },
+  groupFt: { display: 'flex', gap: 8, padding: '10px 16px', alignItems: 'center' },
+  emptyGroup: { padding: '18px 16px', fontSize: 13, color: C.inkMuted },
+
+  // ── Board view ──
+  board: { display: 'flex', gap: 12, padding: 16, flex: 1, alignItems: 'flex-start', overflowX: 'auto' },
+  col: { flex: '0 0 240px', background: C.white, border: `1px solid ${C.hairline}`, display: 'flex', flexDirection: 'column' },
+  colHdr: { padding: '12px 12px 10px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
+  colName: { fontSize: 14, fontWeight: 600, color: C.ink },
+  colCnt: { fontSize: 12, color: C.inkMuted, fontVariantNumeric: 'tabular-nums' },
+  colScroll: { overflowY: 'auto', flex: 1, minHeight: 120, maxHeight: 'calc(100vh - 300px)' },
+  colBody: { padding: 8, display: 'flex', flexDirection: 'column', gap: 8 },
+  card: { background: C.white, border: `1px solid ${C.hairline}`, padding: '10px 11px', cursor: 'grab', userSelect: 'none' },
+  cardTop: { display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 7 },
+  av: { width: 30, height: 30, borderRadius: 0, fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  cardName: { fontSize: 13, fontWeight: 600, color: C.ink, lineHeight: 1.25, flex: 1 },
+  cardFirm: { fontSize: 12, color: C.inkMuted, marginTop: 1 },
+  cardMeta: { display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 7 },
+  metaRow: { fontSize: 12, color: C.inkMuted, display: 'flex', alignItems: 'center', gap: 4 },
+  spl: { fontSize: 11, padding: '1px 6px', borderRadius: 0, border: `1px solid ${C.hairline}`, color: C.ink, background: C.surfaceAlt },
+  cardFt: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, paddingTop: 6, borderTop: `1px solid ${C.hairline}` },
+  showMore: { ...btnBase, margin: '4px 8px 8px', justifyContent: 'center', border: `1px solid ${C.hairline}`, background: C.white, color: C.ink, fontSize: 12, width: 'calc(100% - 16px)' },
+
+  // Last-contact badges
+  bok: { ...badgeBase, background: C.surfaceAlt, color: C.inkMuted },
+  bwn: { ...badgeBase, background: C.white, color: C.ink, border: `1px solid ${C.gray}` },
+  bod: { ...badgeBase, background: 'rgba(250,69,54,0.09)', color: C.flameDeep },
+
+  // Modals
+  ovl: { position: 'fixed', inset: 0, background: 'rgba(5,8,28,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
+  modal: { background: C.white, border: `1px solid ${C.hairline}`, borderTop: `3px solid ${C.midnight}`, borderRadius: 0, width: 480, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', padding: 24 },
+  mHdr: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid ${C.hairline}` },
+  mTitle: { fontSize: 16, fontWeight: 600, color: C.ink },
+  fGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
+  fFull: { gridColumn: '1 / -1' },
+  fGrp: { display: 'flex', flexDirection: 'column', gap: 4 },
+  fLbl: { fontSize: 12, fontWeight: 500, color: C.inkMuted },
+  fInp: { background: C.white, border: `1px solid ${C.hairline}`, borderRadius: 0, padding: '8px 10px', fontSize: 13, fontFamily: FONT, color: C.ink, width: '100%' },
+  fTa: { background: C.white, border: `1px solid ${C.hairline}`, borderRadius: 0, padding: '8px 10px', fontSize: 13, fontFamily: FONT, color: C.ink, width: '100%', minHeight: 68, resize: 'vertical' },
+  mFt: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.hairline}` },
+
+  // Search dropdown
+  sDrop: { position: 'absolute', top: 'calc(100% + 6px)', right: 0, width: 400, maxWidth: '90vw', background: C.white, border: `1px solid ${C.hairline}`, boxShadow: '0 8px 24px rgba(5,8,28,0.18)', zIndex: 200, maxHeight: 480, overflowY: 'auto' },
+  sSec: { ...eyebrow, padding: '10px 14px 6px' },
+  sRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', cursor: 'pointer', borderTop: `1px solid ${C.hairline}` },
+  sIco: { width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14 },
+  sFt: { padding: '8px 14px', borderTop: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: C.inkMuted },
+
+  // Login
+  loginWrap: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.midnight, padding: 20 },
+  loginCard: { background: C.white, borderRadius: 0, width: 380, maxWidth: '100%', padding: 36 },
+
+  toast: (show) => ({ position: 'fixed', bottom: 20, right: 20, background: C.midnight, color: C.white, padding: '10px 16px', fontSize: 13, zIndex: 200, opacity: show ? 1 : 0, transition: 'opacity 0.3s', pointerEvents: 'none', fontFamily: FONT, borderLeft: `3px solid ${C.flame}` }),
+
+  // Notes timeline (contact detail)
+  noteItem: { padding: '8px 0', borderBottom: `1px solid ${C.hairline}`, display: 'flex', gap: 8, alignItems: 'flex-start' },
+  noteText: { fontSize: 13, color: C.ink, lineHeight: 1.5, whiteSpace: 'pre-wrap' },
+  noteMeta: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 12, color: C.inkMuted },
+  noteDelBtn: { width: 20, height: 20, borderRadius: 0, border: 'none', background: 'transparent', cursor: 'pointer', color: C.inkMuted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  noteEmpty: { fontSize: 13, color: C.inkMuted, padding: '10px 0', textAlign: 'center' },
+  noteList: { maxHeight: 200, overflowY: 'auto', marginBottom: 10 },
+};
+
+const StageDot = ({ stage, size = 10 }) => (
+  <span aria-hidden="true" style={{ width: size, height: size, background: stage.c, border: stage.edge ? `1px solid ${stage.edge}` : 'none', flexShrink: 0, display: 'inline-block' }} />
+);
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -268,7 +334,7 @@ function Login({ onLogin }) {
       await signIn(email, password);
       onLogin();
     } catch (err) {
-      setError('Invalid email or password');
+      setError('That email and password don’t match. Try again.');
     } finally {
       setLoading(false);
     }
@@ -277,12 +343,13 @@ function Login({ onLogin }) {
   return (
     <div style={S.loginWrap}>
       <div style={S.loginCard}>
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <img src={LOGO_SVG} alt="Alpenglow Capital" style={{ height: 80, marginBottom: 16 }} />
-          <div style={{ fontSize: 9, letterSpacing: '0.26em', color: 'rgba(170,152,125,0.42)', textTransform: 'uppercase' }}>Investor Pipeline</div>
+        <div style={{ marginBottom: 28 }}>
+          <img src={LOGO_COLOR} alt="Alpenglow Capital" style={{ height: 34, marginBottom: 20 }} />
+          <div style={{ width: 40, height: 3, background: C.flame, marginBottom: 10 }} />
+          <div style={{ fontSize: 22, fontWeight: 600, color: C.ink }}>Investor pipeline</div>
         </div>
         {error && (
-          <div style={{ background: 'rgba(196,82,42,0.15)', border: '1px solid rgba(196,82,42,0.3)', borderRadius: 3, padding: '8px 12px', fontSize: 11, color: '#E07858', marginBottom: 14 }}>
+          <div style={{ background: 'rgba(250,69,54,0.08)', borderLeft: `3px solid ${C.flame}`, padding: '8px 12px', fontSize: 13, color: C.flameDeep, marginBottom: 14 }}>
             {error}
           </div>
         )}
@@ -304,12 +371,22 @@ function Login({ onLogin }) {
   );
 }
 
+const SORTS = {
+  name:    (a, b) => (a.full_name || '').localeCompare(b.full_name || ''),
+  firm:    (a, b) => (a.firm || '').localeCompare(b.firm || ''),
+  city:    (a, b) => (a.city || '').localeCompare(b.city || ''),
+  source:  (a, b) => (a.source || '').localeCompare(b.source || ''),
+  type:    (a, b) => (a.contact_type || '').localeCompare(b.contact_type || ''),
+  contact: (a, b) => daysSince(a.last_contact_date) - daysSince(b.last_contact_date),
+};
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dragId, setDragId] = useState(null);
+  const [dragOver, setDragOver] = useState(null);
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: '' });
   const [search, setSearch] = useState('');
@@ -317,7 +394,14 @@ export default function App() {
   const [searchResults, setSearchResults] = useState([]);
   const [activeSource, setActiveSource] = useState(null);
   const [activeType, setActiveType] = useState(null);
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const [colPages, setColPages] = useState({ suspect: 1, prospect: 1, engagement: 1, invested: 1, nurture: 1 });
+  const [view, setView] = useState(() => readStored(VIEW_KEY, 'list'));
+  const [collapsed, setCollapsed] = useState(() => readStored(COLLAPSE_KEY, DEFAULT_COLLAPSED));
+  const [sort, setSort] = useState({ key: 'contact', dir: 'desc' });
+
+  useEffect(() => { writeStored(VIEW_KEY, view); }, [view]);
+  useEffect(() => { writeStored(COLLAPSE_KEY, collapsed); }, [collapsed]);
 
   useEffect(() => {
     pipelineDb.auth.getSession().then(({ data: { session } }) => {
@@ -342,6 +426,12 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setSearchOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const loadProfile = async () => {
     try {
       const p = await getCurrentProfile();
@@ -355,7 +445,7 @@ export default function App() {
       const data = await getContacts();
       setContacts(data || []);
     } catch (e) {
-      showToast('Error loading contacts');
+      showToast('Couldn’t load contacts. Refresh to try again.');
     } finally {
       setLoading(false);
     }
@@ -389,6 +479,25 @@ export default function App() {
     setModal({ type: 'detail', contact });
   };
 
+  // One path for every stage change: drag-and-drop, the row's stage menu and the detail modal.
+  const moveContact = async (contact, toStage) => {
+    if (!contact || contact.stage === toStage) return false;
+    if (toStage === 'invested') {
+      setModal({ type: 'promote', contact });
+      return false;
+    }
+    try {
+      await moveStage(contact.id, contact.stage, toStage, user.id);
+      setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, stage: toStage } : c));
+      showToast('Moved to ' + STAGES.find(s => s.id === toStage).lb);
+      if (toStage === 'nurture') handleMoveToNurture(contact);
+      return true;
+    } catch (e) {
+      showToast('Couldn’t move contact. Try again.');
+      return false;
+    }
+  };
+
   const handleDragStart = (e, id) => {
     setDragId(id);
     e.dataTransfer.effectAllowed = 'move';
@@ -396,23 +505,11 @@ export default function App() {
 
   const handleDrop = async (e, stageId) => {
     e.preventDefault();
+    setDragOver(null);
     if (!dragId) return;
     const contact = contacts.find(c => c.id === dragId);
-    if (!contact || contact.stage === stageId) { setDragId(null); return; }
-    if (stageId === 'invested') {
-      setModal({ type: 'promote', contact });
-      setDragId(null);
-      return;
-    }
-    try {
-      await moveStage(contact.id, contact.stage, stageId, user.id);
-      setContacts(prev => prev.map(c => c.id === dragId ? { ...c, stage: stageId } : c));
-      showToast('Moved to ' + STAGES.find(s => s.id === stageId).lb);
-      if (stageId === 'nurture') handleMoveToNurture(contact);
-    } catch (e) {
-      showToast('Error moving contact');
-    }
     setDragId(null);
+    await moveContact(contact, stageId);
   };
 
   const handleSave = async (formData, existingId) => {
@@ -432,7 +529,7 @@ export default function App() {
           notes: formData.notes,
         });
         setContacts(prev => prev.map(c => c.id === existingId ? updated : c));
-        showToast('Saved');
+        showToast('Contact saved');
       } else {
         const created = await createContact({
           full_name: formData.name,
@@ -452,7 +549,7 @@ export default function App() {
       }
       setModal(null);
     } catch (e) {
-      showToast('Error saving contact');
+      showToast('Couldn’t save contact. Try again.');
     }
   };
 
@@ -461,9 +558,9 @@ export default function App() {
     try {
       await deleteContact(id);
       setContacts(prev => prev.filter(c => c.id !== id));
-      showToast('Removed');
+      showToast('Contact removed');
     } catch (e) {
-      showToast('Error removing contact');
+      showToast('Couldn’t remove contact. Try again.');
     }
   };
 
@@ -473,7 +570,7 @@ export default function App() {
       showToast('Promotion request submitted');
       setModal(null);
     } catch (e) {
-      showToast('Error submitting request');
+      showToast('Couldn’t submit request. Try again.');
     }
   };
 
@@ -484,13 +581,13 @@ export default function App() {
       showToast('LP promoted to Investors database');
       setModal(null);
     } catch (e) {
-      showToast('Error approving promotion');
+      showToast('Couldn’t approve promotion. Try again.');
     }
   };
 
   useEffect(() => {
     setColPages({ suspect: 1, prospect: 1, engagement: 1, invested: 1, nurture: 1 });
-  }, [activeSource, activeType, search]);
+  }, [activeSource, activeType, search, overdueOnly]);
 
   const filtered = useCallback(() => {
     let list = contacts;
@@ -499,13 +596,15 @@ export default function App() {
       list = list.filter(c =>
         c.full_name?.toLowerCase().includes(lq) ||
         c.firm?.toLowerCase().includes(lq) ||
-        c.city?.toLowerCase().includes(lq)
+        c.city?.toLowerCase().includes(lq) ||
+        c.email?.toLowerCase().includes(lq)
       );
     }
     if (activeSource) list = list.filter(c => c.source === activeSource);
     if (activeType) list = list.filter(c => c.contact_type === activeType);
+    if (overdueOnly) list = list.filter(c => daysSince(c.last_contact_date) >= 30);
     return list;
-  }, [contacts, search, activeSource, activeType]);
+  }, [contacts, search, activeSource, activeType, overdueOnly]);
 
   const stats = useCallback(() => {
     const s = { suspect: 0, prospect: 0, engagement: 0, invested: 0, nurture: 0, overdue: 0 };
@@ -516,16 +615,41 @@ export default function App() {
     return s;
   }, [contacts]);
 
-  const showMoreCol = (stageId) => {
-    setColPages(prev => ({ ...prev, [stageId]: prev[stageId] + 1 }));
+  const showMoreCol = (stageId, all = false) => {
+    setColPages(prev => ({ ...prev, [stageId]: all ? 9999 : prev[stageId] + 1 }));
   };
 
   const clearFilters = () => {
     setActiveSource(null);
     setActiveType(null);
+    setOverdueOnly(false);
   };
 
-  const hasFilters = activeSource || activeType;
+  const toggleGroup = (stageId) => setCollapsed(prev => ({ ...prev, [stageId]: !prev[stageId] }));
+  const setAllGroups = (isCollapsed) => setCollapsed(STAGES.reduce((acc, s) => ({ ...acc, [s.id]: isCollapsed }), {}));
+
+  const jumpToStage = (stageId) => {
+    if (view !== 'list') { setView('list'); }
+    setCollapsed(prev => ({ ...prev, [stageId]: false }));
+    setTimeout(() => {
+      const el = document.getElementById('stage-' + stageId);
+      if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - HDR_H - 8, behavior: 'smooth' });
+    }, 30);
+  };
+
+  const toggleSort = (key) => {
+    setSort(prev => prev.key === key
+      ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: key === 'contact' ? 'desc' : 'asc' });
+  };
+
+  const sortRows = (rows) => {
+    const fn = SORTS[sort.key] || SORTS.name;
+    const out = [...rows].sort(fn);
+    return sort.dir === 'desc' ? out.reverse() : out;
+  };
+
+  const hasFilters = activeSource || activeType || overdueOnly;
 
   if (!user) return <Login onLogin={handleLogin} />;
 
@@ -534,36 +658,35 @@ export default function App() {
   const total = contacts.length || 1;
   const usedSources = [...new Set(contacts.map(c => c.source).filter(Boolean))];
 
+  const SortHead = ({ k, children, style }) => {
+    const on = sort.key === k;
+    return (
+      <th style={{ ...S.th, ...style }} aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+        <button style={{ ...S.thBtn, color: on ? C.ink : C.inkMuted }} onClick={() => toggleSort(k)}>
+          {children}
+          <i className={`ti ${on ? (sort.dir === 'asc' ? 'ti-chevron-up' : 'ti-chevron-down') : 'ti-selector'}`} style={{ fontSize: 12, opacity: on ? 1 : 0.5 }} />
+        </button>
+      </th>
+    );
+  };
+
   return (
     <div style={S.app}>
-      <div style={S.scene}>
-        <div style={S.sky} />
-        <div style={S.glL} />
-        <div style={S.glR} />
-        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
-          <g fill="white" opacity="0.55">
-            {[[120,80],[280,55],[450,95],[600,42],[720,75],[850,30],[980,62],[1100,48],[1250,88],[1380,36],[1500,70],[1650,50],[1790,82]].map(([x,y],i) => <circle key={i} cx={x} cy={y} r="0.7"/>)}
-          </g>
-          <path d="M0,620 L120,520 L220,580 L340,460 L480,540 L580,400 L700,490 L820,350 L960,450 L1080,320 L1220,430 L1340,370 L1460,490 L1580,340 L1700,430 L1820,380 L1920,460 L1920,1080 L0,1080 Z" fill="#0e1520" opacity="0.95"/>
-          <path d="M0,680 L100,580 L200,640 L300,530 L420,610 L540,500 L660,570 L760,480 L880,550 L1000,440 L1120,520 L1220,460 L1340,530 L1460,470 L1580,550 L1700,490 L1800,560 L1920,500 L1920,1080 L0,1080 Z" fill="#0b1018" opacity="0.97"/>
-          <path d="M0,760 Q200,720 400,750 Q600,780 800,740 Q1000,700 1200,730 Q1400,760 1600,720 Q1750,695 1920,730 L1920,1080 L0,1080 Z" fill="#07090c"/>
-        </svg>
-        <div style={S.fg} />
-      </div>
-
       <div style={S.content}>
-        <div style={S.hdr}>
+        <header style={S.hdr}>
           <div style={S.brand}>
-            <img src={LOGO_SVG} alt="Alpenglow Capital" style={S.logo} />
-            <span style={S.ptag}>Investor Pipeline · RE Group</span>
+            <img src={LOGO_WHITE} alt="Alpenglow Capital" style={S.logo} />
+            <span style={S.ptag}>Investor pipeline</span>
           </div>
           <div style={S.hRight}>
             <div style={{ position: 'relative' }}>
               <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-                <i className="ti ti-search" style={{ position: 'absolute', left: 9, fontSize: 13, color: 'rgba(170,152,125,0.42)', pointerEvents: 'none' }} />
+                <i className="ti ti-search" style={{ position: 'absolute', left: 10, fontSize: 14, color: 'rgba(255,255,255,0.6)', pointerEvents: 'none' }} />
                 <input
-                  style={{ ...S.fInp, paddingLeft: 28, width: 220, borderRadius: 4 }}
-                  placeholder="Search investors, managers, firms…"
+                  className="ag-hsearch"
+                  style={S.hSearch}
+                  placeholder="Search name, firm, city or email"
+                  aria-label="Search contacts"
                   value={search}
                   onChange={e => handleSearch(e.target.value)}
                   onFocus={() => search && setSearchOpen(true)}
@@ -574,63 +697,71 @@ export default function App() {
                   <div style={S.sSec}>Results</div>
                   {searchResults.map(r => {
                     const ic = GH_ICONS[r.contact_type] || GH_ICONS.contact;
-                    const av = avatarStyle(r.full_name);
+                    const stg = STAGES.find(s => s.id === r.stage);
                     return (
-                      <div key={r.id} style={S.sRow}
-                        onClick={() => handleSearchSelect(r)}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(196,82,42,0.1)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        <div style={{ ...S.sIco, background: av.b, color: av.c }}>
+                      <div key={r.id} className="ag-row" style={S.sRow} onClick={() => handleSearchSelect(r)}>
+                        <div style={{ ...S.sIco, background: C.surfaceAlt, color: C.midnight }}>
                           <i className={`ti ${ic.icon}`} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(232,220,200,0.92)' }}>{highlight(r.full_name, search)}</div>
-                          <div style={{ fontSize: 10, color: 'rgba(170,152,125,0.42)' }}>{r.firm}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{highlight(r.full_name, search)}</div>
+                          <div style={{ fontSize: 12, color: C.inkMuted }}>{r.firm}</div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-                          <span style={{ fontSize: 8, letterSpacing: '0.09em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 2, fontWeight: 500, ...S[STAGE_CLS[r.stage]] }}>{r.stage}</span>
-                          <span style={{ fontSize: 9, color: 'rgba(170,152,125,0.38)' }}>{r.city}</span>
+                          {stg && <span style={{ fontSize: 12, color: C.ink, display: 'inline-flex', alignItems: 'center', gap: 6 }}><StageDot stage={stg} size={8} />{stg.lb}</span>}
+                          <span style={{ fontSize: 12, color: C.inkMuted }}>{r.city}</span>
                         </div>
                       </div>
                     );
                   })}
                   <div style={S.sFt}>
-                    <span style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)' }}>{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</span>
-                    <span style={{ fontSize: 9, color: 'rgba(170,152,125,0.35)' }}>esc to close</span>
+                    <span>{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</span>
+                    <span>Esc to close</span>
                   </div>
                 </div>
               )}
             </div>
-            <button style={S.btn} onClick={() => setModal({ type: 'capture' })}>
+            <button style={S.hBtn} onClick={() => setModal({ type: 'capture' })}>
               <i className="ti ti-camera" /> Capture
             </button>
-            <button style={S.btn} onClick={() => setModal({ type: 'import' })}>
+            <button style={S.hBtn} onClick={() => setModal({ type: 'import' })}>
               <i className="ti ti-upload" /> Import
             </button>
-            <button style={S.btnP} onClick={() => setModal({ type: 'add' })}>
-              <i className="ti ti-plus" /> Add Contact
+            <button style={S.hBtnP} onClick={() => setModal({ type: 'add' })}>
+              <i className="ti ti-plus" /> Add contact
             </button>
-            <button style={S.ibtn} onClick={handleSignOut} title="Sign out">
-              <i className="ti ti-logout" style={{ fontSize: 14 }} />
+            <button style={S.hIbtn} onClick={handleSignOut} title="Sign out" aria-label="Sign out">
+              <i className="ti ti-logout" style={{ fontSize: 16 }} />
             </button>
           </div>
-        </div>
+        </header>
 
-        <div style={S.stats}>
+        <nav style={S.stats} aria-label="Pipeline stages">
           {STAGES.map(stage => (
-            <div key={stage.id} style={S.stat}>
-              <div style={{ ...S.statNum, color: stage.c }}>{st[stage.id]}</div>
-              <div style={S.statLbl}>{stage.lb}</div>
-              <div style={{ position: 'absolute', bottom: 0, left: 0, height: 2, width: `${Math.round(st[stage.id] / total * 100)}%`, background: stage.c, opacity: 0.55 }} />
-            </div>
+            <button key={stage.id} className="ag-stat" style={S.stat} onClick={() => jumpToStage(stage.id)} title={`Go to ${stage.lb}`}>
+              <div style={S.statNum}>{st[stage.id]}</div>
+              <div style={S.statLbl}><StageDot stage={stage} size={8} />{stage.lb}</div>
+              <div style={{ position: 'absolute', bottom: 0, left: 0, height: 3, width: `${Math.round(st[stage.id] / total * 100)}%`, background: stage.id === 'nurture' ? C.gray : stage.c }} />
+            </button>
           ))}
-          <div style={{ ...S.stat, borderRight: 'none' }}>
-            <div style={{ ...S.statNum, color: '#E07858' }}>{st.overdue}</div>
-            <div style={S.statLbl}>Overdue</div>
-          </div>
-        </div>
+          <button className="ag-stat" style={{ ...S.stat, borderRight: 'none' }} onClick={() => setOverdueOnly(v => !v)} title="Show only contacts not reached in 30+ days">
+            <div style={{ ...S.statNum, color: C.flame }}>{st.overdue}</div>
+            <div style={S.statLbl}>Overdue, 30+ days</div>
+          </button>
+        </nav>
 
         <div style={S.filterBar}>
+          <div style={S.seg} role="group" aria-label="View">
+            <button style={S.segBtn(view === 'list')} onClick={() => setView('list')}><i className="ti ti-list" style={{ fontSize: 13 }} />List</button>
+            <button style={S.segBtn(view === 'board')} onClick={() => setView('board')}><i className="ti ti-layout-kanban" style={{ fontSize: 13 }} />Board</button>
+          </div>
+          {view === 'list' && (
+            <>
+              <button style={S.pill} onClick={() => setAllGroups(false)}><i className="ti ti-arrows-vertical" style={{ fontSize: 12 }} />Expand all</button>
+              <button style={S.pill} onClick={() => setAllGroups(true)}><i className="ti ti-fold" style={{ fontSize: 12 }} />Collapse all</button>
+            </>
+          )}
+          <div style={S.pillDivider} />
           <span style={S.filterLabel}>Filter</span>
           {[
             { key: 'investor', label: 'Investors', icon: 'ti-user-dollar' },
@@ -639,11 +770,14 @@ export default function App() {
           ].map(t => (
             <button key={t.key} style={activeType === t.key ? S.pillActive : S.pill}
               onClick={() => setActiveType(activeType === t.key ? null : t.key)}>
-              <i className={`ti ${t.icon}`} style={{ fontSize: 11 }} />
+              <i className={`ti ${t.icon}`} style={{ fontSize: 12 }} />
               {t.label}
             </button>
           ))}
-          <div style={S.pillDivider} />
+          <button style={overdueOnly ? S.pillActive : S.pill} onClick={() => setOverdueOnly(v => !v)}>
+            <i className="ti ti-clock-exclamation" style={{ fontSize: 12 }} />Overdue
+          </button>
+          {usedSources.length > 0 && <div style={S.pillDivider} />}
           {usedSources.map(src => (
             <button key={src} style={activeSource === src ? S.pillActive : S.pill}
               onClick={() => setActiveSource(activeSource === src ? null : src)}>
@@ -653,38 +787,142 @@ export default function App() {
           {hasFilters && (
             <>
               <div style={S.pillDivider} />
-              <button style={{ ...S.pill, color: 'rgba(196,82,42,0.7)', borderColor: 'rgba(196,82,42,0.3)' }} onClick={clearFilters}>
-                <i className="ti ti-x" style={{ fontSize: 10 }} />
-                Clear
+              <button style={S.pill} onClick={clearFilters}>
+                <i className="ti ti-x" style={{ fontSize: 11 }} />
+                Clear filters
               </button>
+              <span style={{ fontSize: 12, color: C.inkMuted, marginLeft: 4 }}>
+                {list.length} contact{list.length !== 1 ? 's' : ''} shown
+              </span>
             </>
-          )}
-          {hasFilters && (
-            <span style={{ fontSize: 9, color: 'rgba(170,152,125,0.38)', marginLeft: 4, letterSpacing: '0.08em' }}>
-              {list.length} contact{list.length !== 1 ? 's' : ''} shown
-            </span>
           )}
         </div>
 
         {loading ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(170,152,125,0.42)', fontSize: 12, letterSpacing: '0.1em' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.inkMuted, fontSize: 14, padding: 40 }}>
             Loading pipeline…
           </div>
+        ) : view === 'list' ? (
+          // ── LIST VIEW: one collapsible table per stage ──
+          <div style={S.groups}>
+            {STAGES.map(stage => {
+              const rows = sortRows(list.filter(c => c.stage === stage.id));
+              const open = !collapsed[stage.id];
+              const visibleCount = colPages[stage.id] * ROWS_PER_PAGE;
+              const visible = rows.slice(0, visibleCount);
+              const remaining = rows.length - visible.length;
+              const overdue = rows.filter(c => daysSince(c.last_contact_date) >= 30).length;
+              return (
+                <section key={stage.id} id={'stage-' + stage.id} style={S.group}
+                  onDragOver={e => { e.preventDefault(); if (dragOver !== stage.id) setDragOver(stage.id); }}
+                  onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
+                  onDrop={e => handleDrop(e, stage.id)}>
+                  <button style={S.groupHdr(open, dragOver === stage.id)} onClick={() => toggleGroup(stage.id)} aria-expanded={open}>
+                    <i className={`ti ${open ? 'ti-chevron-down' : 'ti-chevron-right'}`} style={{ fontSize: 16, color: C.inkMuted }} />
+                    <StageDot stage={stage} size={12} />
+                    <span style={S.groupName}>{stage.lb}</span>
+                    <span style={S.groupCnt}>{rows.length}{hasFilters || search.trim() ? ` of ${st[stage.id]}` : ''}</span>
+                    {overdue > 0 && <span style={S.groupOverdue}>{overdue} overdue</span>}
+                    <span style={{ marginLeft: 'auto', fontSize: 12, color: C.inkMuted }}>
+                      {dragOver === stage.id ? 'Drop to move here' : open ? 'Collapse' : 'Expand'}
+                    </span>
+                  </button>
+
+                  {open && (
+                    rows.length === 0 ? (
+                      <div style={S.emptyGroup}>
+                        {hasFilters || search.trim() ? 'No contacts in this stage match your filters.' : 'No contacts in this stage yet. Drag a row here or change a contact’s stage to add one.'}
+                      </div>
+                    ) : (
+                      <>
+                        <div style={S.tableWrap}>
+                          <table style={S.table}>
+                            <thead>
+                              <tr>
+                                <SortHead k="name" style={{ width: '24%' }}>Name</SortHead>
+                                <SortHead k="firm" style={{ width: '18%' }}>Firm</SortHead>
+                                <SortHead k="type">Type</SortHead>
+                                <SortHead k="city">City</SortHead>
+                                <SortHead k="source">Source</SortHead>
+                                <SortHead k="contact">Last contact</SortHead>
+                                <th style={S.th}>Stage</th>
+                                <th style={{ ...S.th, textAlign: 'right' }}><span style={{ position: 'absolute', left: -9999 }}>Actions</span></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {visible.map(c => {
+                                const b = badgeFor(c.last_contact_date);
+                                const ic = GH_ICONS[c.contact_type] || GH_ICONS.contact;
+                                return (
+                                  <tr key={c.id} className="ag-row" draggable
+                                    onDragStart={e => handleDragStart(e, c.id)}
+                                    onDragEnd={() => { setDragId(null); setDragOver(null); }}
+                                    style={{ cursor: 'pointer', opacity: dragId === c.id ? 0.4 : 1 }}
+                                    onClick={() => setModal({ type: 'detail', contact: c })}>
+                                    <td style={S.td}>
+                                      <div style={S.rowName}>{highlight(c.full_name, search)}</div>
+                                      {c.email && <div style={S.rowSub}>{c.email}</div>}
+                                    </td>
+                                    <td style={S.td}>{highlight(c.firm, search)}</td>
+                                    <td style={S.tdMuted}>
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                        <i className={`ti ${ic.icon}`} style={{ fontSize: 13 }} />{ic.lb}
+                                      </span>
+                                    </td>
+                                    <td style={S.tdMuted}>{c.city}</td>
+                                    <td style={S.tdMuted}>{c.source}</td>
+                                    <td style={S.td}><span style={S[b.cl]}>{b.lb}</span></td>
+                                    <td style={S.td} onClick={e => e.stopPropagation()}>
+                                      <select style={S.stageSel} value={c.stage} aria-label={`Stage for ${c.full_name}`}
+                                        onChange={e => moveContact(c, e.target.value)}>
+                                        {STAGES.map(s => <option key={s.id} value={s.id}>{s.lb}</option>)}
+                                      </select>
+                                    </td>
+                                    <td style={{ ...S.td, textAlign: 'right', whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
+                                      <button style={S.ibtn} title="Edit" aria-label={`Edit ${c.full_name}`} onClick={() => setModal({ type: 'edit', contact: c })}><i className="ti ti-edit" style={{ fontSize: 15 }} /></button>
+                                      <button style={S.ibtn} title="Remove" aria-label={`Remove ${c.full_name}`} onClick={() => handleDelete(c.id, c.full_name)}><i className="ti ti-trash" style={{ fontSize: 15 }} /></button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        {remaining > 0 && (
+                          <div style={S.groupFt}>
+                            <button style={S.btn} onClick={() => showMoreCol(stage.id)}>
+                              Show {Math.min(remaining, ROWS_PER_PAGE)} more
+                            </button>
+                            <button style={S.btn} onClick={() => showMoreCol(stage.id, true)}>
+                              Show all {rows.length}
+                            </button>
+                            <span style={{ fontSize: 12, color: C.inkMuted }}>{remaining} not shown</span>
+                          </div>
+                        )}
+                      </>
+                    )
+                  )}
+                </section>
+              );
+            })}
+          </div>
         ) : (
+          // ── BOARD VIEW ──
           <div style={S.board}>
             {STAGES.map(stage => {
-              const stageContacts = list.filter(c => c.stage === stage.id);
+              const stageContacts = sortRows(list.filter(c => c.stage === stage.id));
               const visibleCount = colPages[stage.id] * CARDS_PER_PAGE;
               const visible = stageContacts.slice(0, visibleCount);
               const remaining = stageContacts.length - visibleCount;
               return (
-                <div key={stage.id} style={S.col}
-                  onDragOver={e => e.preventDefault()}
+                <div key={stage.id} style={{ ...S.col, outline: dragOver === stage.id ? `2px solid ${C.midnight}` : 'none' }}
+                  onDragOver={e => { e.preventDefault(); if (dragOver !== stage.id) setDragOver(stage.id); }}
+                  onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
                   onDrop={e => handleDrop(e, stage.id)}>
-                  <div style={{ height: 2, background: stage.c, opacity: 0.8, borderRadius: '6px 6px 0 0', flexShrink: 0 }} />
+                  <div style={{ height: 3, background: stage.id === 'nurture' ? C.gray : stage.c, flexShrink: 0 }} />
                   <div style={S.colHdr}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: stage.c, flexShrink: 0 }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <StageDot stage={stage} size={9} />
                       <span style={S.colName}>{stage.lb}</span>
                     </div>
                     <span style={S.colCnt}>{stageContacts.length}</span>
@@ -692,8 +930,7 @@ export default function App() {
                   <div style={S.colScroll}>
                     <div style={S.colBody}>
                       {stageContacts.length === 0 && (
-                        <div style={{ textAlign: 'center', padding: '22px 10px', fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)', opacity: 0.5 }}>
-                          <i className="ti ti-inbox" style={{ fontSize: 18, display: 'block', marginBottom: 5 }} />
+                        <div style={{ textAlign: 'center', padding: '22px 10px', fontSize: 12, color: C.inkMuted }}>
                           No contacts
                         </div>
                       )}
@@ -704,27 +941,25 @@ export default function App() {
                         return (
                           <div key={c.id} style={S.card} draggable
                             onDragStart={e => handleDragStart(e, c.id)}
-                            onDragEnd={() => setDragId(null)}>
+                            onDragEnd={() => { setDragId(null); setDragOver(null); }}>
                             <div style={S.cardTop}>
                               <div style={{ ...S.av, background: av.b, color: av.c }}>{initials(c.full_name)}</div>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={S.cardName}>{c.full_name}</div>
                                 <div style={S.cardFirm}>{c.firm}</div>
                               </div>
-                              <i className={`ti ${ic.icon}`} style={{ fontSize: 11, color: av.c, opacity: 0.7 }} />
+                              <i className={`ti ${ic.icon}`} style={{ fontSize: 13, color: C.inkMuted }} />
                             </div>
                             <div style={S.cardMeta}>
-                              <div style={S.metaRow}><i className="ti ti-map-pin" style={{ fontSize: 11 }} />{c.city}</div>
-                              <div style={S.metaRow}><i className="ti ti-tag" style={{ fontSize: 11 }} />
-                                <span style={{ ...S.spl, color: stage.c, borderColor: stage.c + '44', background: stage.c + '12' }}>{c.source}</span>
-                              </div>
+                              {c.city && <div style={S.metaRow}><i className="ti ti-map-pin" style={{ fontSize: 12 }} />{c.city}</div>}
+                              {c.source && <div style={S.metaRow}><i className="ti ti-tag" style={{ fontSize: 12 }} /><span style={S.spl}>{c.source}</span></div>}
                             </div>
                             <div style={S.cardFt}>
                               <span style={S[b.cl]}>{b.lb}</span>
                               <div style={{ display: 'flex', gap: 2 }}>
-                                <button style={S.ibtn} onClick={() => setModal({ type: 'detail', contact: c })}><i className="ti ti-eye" style={{ fontSize: 12 }} /></button>
-                                <button style={S.ibtn} onClick={() => setModal({ type: 'edit', contact: c })}><i className="ti ti-edit" style={{ fontSize: 12 }} /></button>
-                                <button style={S.ibtn} onClick={() => handleDelete(c.id, c.full_name)}><i className="ti ti-trash" style={{ fontSize: 12 }} /></button>
+                                <button style={S.ibtn} title="View" onClick={() => setModal({ type: 'detail', contact: c })}><i className="ti ti-eye" style={{ fontSize: 14 }} /></button>
+                                <button style={S.ibtn} title="Edit" onClick={() => setModal({ type: 'edit', contact: c })}><i className="ti ti-edit" style={{ fontSize: 14 }} /></button>
+                                <button style={S.ibtn} title="Remove" onClick={() => handleDelete(c.id, c.full_name)}><i className="ti ti-trash" style={{ fontSize: 14 }} /></button>
                               </div>
                             </div>
                           </div>
@@ -733,8 +968,7 @@ export default function App() {
                     </div>
                     {remaining > 0 && (
                       <button style={S.showMore} onClick={() => showMoreCol(stage.id)}>
-                        <i className="ti ti-chevron-down" style={{ fontSize: 11, marginRight: 5 }} />
-                        Show {Math.min(remaining, CARDS_PER_PAGE)} more · {remaining} remaining
+                        Show {Math.min(remaining, CARDS_PER_PAGE)} more ({remaining} left)
                       </button>
                     )}
                   </div>
@@ -776,15 +1010,8 @@ export default function App() {
           onMoveStage={async (contactId, fromStage, toStage) => {
             if (fromStage === toStage) { setModal(null); return; }
             const contact = contacts.find(c => c.id === contactId);
-            if (toStage === 'invested') {
-              setModal({ type: 'promote', contact });
-              return;
-            }
-            await moveStage(contactId, fromStage, toStage, user.id);
-            setContacts(prev => prev.map(c => c.id === contactId ? { ...c, stage: toStage } : c));
-            setModal(null);
-            showToast('Moved to ' + STAGES.find(s => s.id === toStage).lb);
-            if (toStage === 'nurture') handleMoveToNurture(contact);
+            const moved = await moveContact(contact, toStage);
+            if (moved) setModal(null);
           }}
           onPromotionRequest={handlePromotionRequest}
           onPromotionApprove={handlePromotionApprove}
@@ -792,7 +1019,7 @@ export default function App() {
         />
       )}
 
-      <div style={S.toast(toast.show)}>{toast.msg}</div>
+      <div style={S.toast(toast.show)} role="status">{toast.msg}</div>
     </div>
   );
 }
@@ -954,7 +1181,7 @@ Return ONLY the JSON object. No markdown, no explanation, no code fences.`,
       <div style={S.modal}>
         <div style={S.mHdr}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <i className="ti ti-camera" style={{ fontSize: 16, color: '#C4522A' }} />
+            <i className="ti ti-camera" style={{ fontSize: 16, color: '#FA4536' }} />
             <span style={S.mTitle}>Capture contact</span>
           </div>
           <button style={S.ibtn} onClick={onClose}><i className="ti ti-x" /></button>
@@ -963,11 +1190,11 @@ Return ONLY the JSON object. No markdown, no explanation, no code fences.`,
         {step === 'upload' && (
           <>
             <div
-              style={{ border: '1px dashed rgba(196,82,42,0.42)', borderRadius: 5, padding: 32, textAlign: 'center', cursor: 'pointer', marginBottom: 13, background: 'rgba(196,82,42,0.04)' }}
+              style={{ border: '1px dashed rgba(250,69,54,0.42)', borderRadius: 2, padding: 32, textAlign: 'center', cursor: 'pointer', marginBottom: 13, background: 'rgba(250,69,54,0.04)' }}
               onClick={() => document.getElementById('captureInput').click()}>
-              <i className="ti ti-camera" style={{ fontSize: 32, color: '#C4522A', display: 'block', marginBottom: 10 }} />
-              <p style={{ fontSize: 12, color: 'rgba(200,182,155,0.7)', marginBottom: 6 }}>Take a photo or upload from gallery</p>
-              <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.38)' }}>Business card · Tear sheet · Any contact info</p>
+              <i className="ti ti-camera" style={{ fontSize: 32, color: '#FA4536', display: 'block', marginBottom: 10 }} />
+              <p style={{ fontSize: 12, color: '#555B66', marginBottom: 6 }}>Take a photo or upload from gallery</p>
+              <p style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555B66' }}>Business card · Tear sheet · Any contact info</p>
             </div>
             <input
               type="file"
@@ -986,16 +1213,16 @@ Return ONLY the JSON object. No markdown, no explanation, no code fences.`,
         {step === 'confirm' && (
           <>
             {preview && (
-              <img src={preview} alt="Captured" style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 4, marginBottom: 14 }} />
+              <img src={preview} alt="Captured" style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 2, marginBottom: 14 }} />
             )}
             {extracting ? (
-              <div style={{ textAlign: 'center', padding: '20px 0', color: 'rgba(170,152,125,0.6)', fontSize: 11, letterSpacing: '0.1em' }}>
+              <div style={{ textAlign: 'center', padding: '20px 0', color: '#555B66', fontSize: 11, letterSpacing: '0.1em' }}>
                 <i className="ti ti-loader" style={{ fontSize: 22, display: 'block', marginBottom: 8 }} />
                 Extracting contact details…
               </div>
             ) : extracted && (
               <>
-                <div style={{ fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#555B66', marginBottom: 10 }}>
                   Review and edit extracted details
                 </div>
                 <div style={S.fGrid}>
@@ -1103,16 +1330,16 @@ function ContactModal({ modal, profile, onClose, onSave, onDelete, onMoveStage, 
   if (modal.type === 'promote') {
     return (
       <div style={S.ovl} onClick={e => e.target === e.currentTarget && onClose()}>
-        <div style={{ ...S.modal, borderColor: '#C9A84C55' }}>
+        <div style={{ ...S.modal, borderColor: '#DCDDE2' }}>
           <div style={S.mHdr}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <i className="ti ti-lock" style={{ fontSize: 16, color: '#C9A84C' }} />
-              <span style={{ ...S.mTitle, color: '#C9A84C' }}>Promote to Invested</span>
+              <i className="ti ti-lock" style={{ fontSize: 16, color: '#05081C' }} />
+              <span style={{ ...S.mTitle, color: '#05081C' }}>Promote to Invested</span>
             </div>
             <button style={S.ibtn} onClick={onClose}><i className="ti ti-x" /></button>
           </div>
-          <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 4, padding: '10px 12px', marginBottom: 16, fontSize: 11, color: 'rgba(201,168,76,0.8)', lineHeight: 1.5 }}>
-            You are about to promote <strong style={{ color: '#C9A84C' }}>{modal.contact.full_name}</strong> to Invested status. This will write their record to the secure LP Registry database. This action is logged and requires authorization.
+          <div style={{ background: 'rgba(5,8,28,0.08)', border: '1px solid rgba(5,8,28,0.2)', borderRadius: 2, padding: '10px 12px', marginBottom: 16, fontSize: 11, color: 'rgba(5,8,28,0.8)', lineHeight: 1.5 }}>
+            You are about to promote <strong style={{ color: '#05081C' }}>{modal.contact.full_name}</strong> to Invested status. This will write their record to the secure LP Registry database. This action is logged and requires authorization.
           </div>
           <div style={S.fGrid}>
             <div style={S.fGrp}>
@@ -1141,7 +1368,7 @@ function ContactModal({ modal, profile, onClose, onSave, onDelete, onMoveStage, 
           </div>
           <div style={S.mFt}>
             <button style={S.btn} onClick={onClose}>Cancel</button>
-            <button style={{ ...S.btnP, background: '#C9A84C', borderColor: '#C9A84C' }}
+            <button style={{ ...S.btnP, background: '#05081C', borderColor: '#05081C' }}
               onClick={() => onPromotionRequest(modal.contact, promoDetails)}>
               <i className="ti ti-lock" /> Submit for approval
             </button>
@@ -1174,27 +1401,27 @@ function ContactModal({ modal, profile, onClose, onSave, onDelete, onMoveStage, 
             ['ti-tag', 'Source', c.source],
           ].map(([icon, label, val]) => val && (
             <div key={label} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 7, fontSize: 12 }}>
-              <i className={`ti ${icon}`} style={{ fontSize: 13, color: 'rgba(170,152,125,0.42)', marginTop: 1 }} />
-              <span style={{ color: 'rgba(170,152,125,0.42)', minWidth: 100, fontSize: 11 }}>{label}</span>
-              <span style={{ color: 'rgba(200,182,155,0.62)' }}>{val}</span>
+              <i className={`ti ${icon}`} style={{ fontSize: 13, color: '#555B66', marginTop: 1 }} />
+              <span style={{ color: '#555B66', minWidth: 100, fontSize: 11 }}>{label}</span>
+              <span style={{ color: '#05081C' }}>{val}</span>
             </div>
           ))}
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14, fontSize: 12 }}>
-            <i className="ti ti-calendar" style={{ fontSize: 13, color: 'rgba(170,152,125,0.42)', marginTop: 1 }} />
-            <span style={{ color: 'rgba(170,152,125,0.42)', minWidth: 100, fontSize: 11 }}>Last contact</span>
-            <span style={S[b.cl]}>{c.last_contact_date} · {b.lb}</span>
+            <i className="ti ti-calendar" style={{ fontSize: 13, color: '#555B66', marginTop: 1 }} />
+            <span style={{ color: '#555B66', minWidth: 100, fontSize: 11 }}>Last contact</span>
+            <span style={S[b.cl]}>{c.last_contact_date ? c.last_contact_date + ' · ' : ''}{b.lb}</span>
           </div>
-          <div style={{ fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)', marginBottom: 8 }}>Pipeline stage</div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#CC2C1D', marginBottom: 8 }}>Pipeline stage</div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 14 }}>
             {STAGES.map(s => (
-              <button key={s.id} style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: 3, cursor: 'pointer', border: `1px solid ${s.c}55`, background: c.stage === s.id ? s.c + '1A' : 'transparent', color: s.c, fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}
+              <button key={s.id} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 0, cursor: 'pointer', border: c.stage === s.id ? '1px solid #05081C' : '1px solid #DCDDE2', background: c.stage === s.id ? '#05081C' : '#FFFFFF', color: c.stage === s.id ? '#FFFFFF' : '#05081C', fontFamily: FONT, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 onClick={() => onMoveStage(c.id, c.stage, s.id)}>
-                {s.lb}
+                <span style={{ width: 8, height: 8, background: s.c, border: s.edge ? '1px solid ' + s.edge : 'none' }} />{s.lb}
               </button>
             ))}
           </div>
 
-          <div style={{ fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(170,152,125,0.42)', marginBottom: 6 }}>Notes</div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#CC2C1D', marginBottom: 6 }}>Notes</div>
 
           {notesLoading ? (
             <div style={S.noteEmpty}>Loading notes…</div>
@@ -1247,7 +1474,7 @@ function ContactModal({ modal, profile, onClose, onSave, onDelete, onMoveStage, 
     <div style={S.ovl} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={S.modal}>
         <div style={S.mHdr}>
-          <span style={S.mTitle}>{modal.type === 'edit' ? 'Edit Contact' : 'New Contact'}</span>
+          <span style={S.mTitle}>{modal.type === 'edit' ? 'Edit contact' : 'New contact'}</span>
           <button style={S.ibtn} onClick={onClose}><i className="ti ti-x" /></button>
         </div>
         <div style={S.fGrid}>
