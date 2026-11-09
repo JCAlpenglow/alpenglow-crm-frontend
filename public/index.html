@@ -3,25 +3,37 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#07090c" />
-    <title>Alpenglow Capital — Investor Pipeline</title>
+    <meta name="theme-color" content="#05081C" />
+    <title>Alpenglow Capital · Investor Pipeline</title>
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"
     />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Eina 03 is the brand face; Outfit is the design system's web fallback. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
-        background: #07090c;
-        font-family: 'Montserrat', system-ui, sans-serif;
-        color: rgba(232,220,200,0.92);
+        background: #F3F3F5;
+        font-family: 'Eina 03', Outfit, 'Helvetica Neue', Arial, sans-serif;
+        color: #05081C;
         min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
       }
       #root { min-height: 100vh; }
+      button, input, select, textarea { font-family: inherit; }
+      .ag-row:hover { background: #F3F3F5; }
+      .ag-stat:hover { background: #F3F3F5 !important; }
+      .ag-hsearch::placeholder { color: rgba(255,255,255,0.6); }
+      input:focus, select:focus, textarea:focus { outline: 2px solid #05081C; outline-offset: -1px; }
+      button:focus-visible, select:focus-visible, tr:focus-visible { outline: 2px solid #FA4536; outline-offset: 1px; }
+      .ag-hsearch:focus { outline: 2px solid #FFFFFF; }
+      @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
     </style>
   </head>
   <body>
